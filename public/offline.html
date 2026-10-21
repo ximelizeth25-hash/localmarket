@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sin Conexión - LocalMarket</title>
+    <meta name="theme-color" content="#0f172a">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome 6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="/icons/favicon.png">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .ambient-glow {
+            background: radial-gradient(circle at 50% 20%, rgba(2, 132, 199, 0.12), transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.08), transparent 45%),
+                        #0f172a;
+        }
+    </style>
+</head>
+<body class="min-h-screen ambient-glow text-slate-100 flex items-center justify-center p-4 antialiased">
+    <div class="max-w-md w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl backdrop-blur-xl relative overflow-hidden">
+        <!-- Decorative Glow Top -->
+        <div class="absolute -top-24 left-1/2 -translate-x-1/2 w-48 h-48 bg-sky-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- Offline Icon with Pulse -->
+        <div class="relative w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+            <div class="absolute inset-0 bg-sky-500/10 rounded-full animate-ping"></div>
+            <div class="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-sky-600/30 to-emerald-500/30 border border-sky-400/30 flex items-center justify-center text-sky-400 shadow-lg">
+                <i class="fa-solid fa-wifi-slash text-3xl"></i>
+            </div>
+        </div>
+
+        <!-- Texts -->
+        <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 mb-3">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+            <span>Modo Offline Activo</span>
+        </span>
+        <h1 class="text-2xl font-extrabold text-white tracking-tight mb-2">Sin Conexión a Internet</h1>
+        <p class="text-sm text-slate-400 leading-relaxed mb-8">
+            No te preocupes, <span class="text-emerald-400 font-semibold">LocalMarket PWA</span> almacena tus datos principales localmente. Verifica tu red o intenta volver a sincronizar.
+        </p>
+
+        <!-- Actions -->
+        <div class="space-y-3">
+            <button onclick="window.location.reload()" class="w-full py-3.5 px-4 bg-gradient-to-r from-sky-500 to-emerald-500 hover:from-sky-400 hover:to-emerald-400 text-white font-bold rounded-xl shadow-lg shadow-sky-500/25 transition-all transform active:scale-[0.98] flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>Reintentar Conexión</span>
+            </button>
+            <a href="/dashboard.html" class="block w-full py-3 px-4 bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-medium rounded-xl border border-slate-700/60 transition-all text-sm">
+                <i class="fa-solid fa-gauge mr-1.5 text-sky-400"></i>
+                <span>Abrir Dashboard Guardado</span>
+            </a>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
+            <span>LocalMarket PWA v1.0</span>
+            <span id="networkStatusBadge" class="flex items-center space-x-1">
+                <i class="fa-solid fa-circle text-[8px] text-rose-500"></i>
+                <span>Desconectado</span>
+            </span>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('online', () => {
+            const badge = document.getElementById('networkStatusBadge');
+            if (badge) badge.innerHTML = '<i class="fa-solid fa-circle text-[8px] text-emerald-500"></i><span>Conectado</span>';
+            setTimeout(() => window.location.reload(), 800);
+        });
+    </script>
+</body>
+</html>
