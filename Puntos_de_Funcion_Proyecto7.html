@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Estimación por Puntos de Función - Proyecto 7 (LocalMarket)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;600&display=swap');
+
+        @page {
+            size: A4 portrait;
+            margin: 1.6cm 1.4cm 1.6cm 1.4cm;
+            @bottom-right {
+                content: counter(page);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            background-color: #ffffff;
+            line-height: 1.5;
+            font-size: 9.5pt;
+        }
+
+        .page-break {
+            page-break-before: always;
+            break-before: page;
+        }
+
+        .avoid-break {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        /* Portada */
+        .cover-page {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 2.2cm 1cm 1.2cm 1cm;
+            border-left: 8px solid #0f172a;
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+        }
+
+        .badge-category {
+            display: inline-block;
+            background-color: #2563eb;
+            color: #ffffff;
+            font-size: 8.5pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            padding: 6px 14px;
+            border-radius: 6px;
+            margin-bottom: 1cm;
+        }
+
+        .cover-title {
+            font-size: 24pt;
+            font-weight: 800;
+            color: #0f172a;
+            line-height: 1.2;
+            margin-bottom: 12px;
+        }
+
+        .cover-subtitle {
+            font-size: 13pt;
+            color: #64748b;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+
+        .cover-meta {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 22px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            margin-bottom: 1.8cm;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .meta-item label {
+            display: block;
+            font-size: 7.5pt;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #94a3b8;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .meta-item p {
+            font-size: 10pt;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .cover-footer {
+            border-top: 1px solid #cbd5e1;
+            padding-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 8pt;
+            color: #64748b;
+        }
+
+        /* Títulos */
+        h1.section-title {
+            font-size: 14pt;
+            font-weight: 800;
+            color: #0f172a;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 5px;
+            margin-top: 20px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+        }
+
+        h1.section-title span.number {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-size: 10pt;
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            margin-right: 8px;
+        }
+
+        h2.subsection-title {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #1e293b;
+            margin-top: 14px;
+            margin-bottom: 8px;
+            border-left: 4px solid #2563eb;
+            padding-left: 8px;
+        }
+
+        p {
+            margin-bottom: 10px;
+            text-align: justify;
+            color: #334155;
+            font-size: 9.2pt;
+        }
+
+        /* Callouts */
+        .callout {
+            background-color: #f8fafc;
+            border-left: 4px solid #2563eb;
+            border-radius: 0 8px 8px 0;
+            padding: 10px 14px;
+            margin: 10px 0;
+            font-size: 8.8pt;
+        }
+
+        .callout-title {
+            font-weight: 700;
+            color: #1d4ed8;
+            margin-bottom: 3px;
+            font-size: 9pt;
+        }
+
+        /* Tablas */
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 7.8pt;
+            margin-bottom: 12px;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        table.data-table th {
+            background-color: #0f172a;
+            color: #ffffff;
+            text-align: left;
+            padding: 5px 7px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            font-size: 7.2pt;
+        }
+
+        table.data-table td {
+            padding: 4.5px 7px;
+            border-bottom: 1px solid #e2e8f0;
+            color: #334155;
+            vertical-align: middle;
+        }
+
+        table.data-table tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        table.data-table tr.subtotal-row {
+            background-color: #f1f5f9;
+            font-weight: bold;
+        }
+
+        table.data-table tr.subtotal-row td {
+            border-top: 2px solid #cbd5e1;
+            color: #0f172a;
+        }
+
+        /* Badges */
+        .badge-level {
+            font-weight: 700;
+            font-size: 7pt;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: inline-block;
+            text-align: center;
+        }
+        .badge-bajo { background-color: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .badge-medio { background-color: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+        .badge-alto { background-color: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+        .code-font {
+            font-family: 'Fira Code', monospace;
+            font-size: 7.5pt;
+            color: #0f172a;
+            font-weight: 600;
+        }
+
+        /* Matriz de Referencia */
+        table.matrix-ref {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 7.5pt;
+            margin: 8px 0 14px 0;
+            text-align: center;
+        }
+        table.matrix-ref th, table.matrix-ref td {
+            border: 1px solid #cbd5e1;
+            padding: 4px 6px;
+        }
+        table.matrix-ref th {
+            background-color: #1e293b;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        table.matrix-ref td.header-col {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .highlight-box {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 12px 0;
+            text-align: center;
+        }
+        .highlight-box .big-number {
+            font-size: 22pt;
+            font-weight: 800;
+            color: #1e40af;
+        }
+        .highlight-box .label {
+            font-size: 9pt;
+            font-weight: 600;
+            color: #3b82f6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PORTADA -->
+    <div class="cover-page">
+        <div class="cover-header">
+            <span class="badge-category">Métricas de Software e Ingeniería de Requisitos</span>
+            <h1 class="cover-title">Estimación de Software por Puntos de Función (FPA)</h1>
+            <p class="cover-subtitle">Puntos de Función No Ajustados (PFNA) y Puntos de Función Ajustados (PFA) basados en el Modelo de Base de Datos de "LocalMarket" (Proyecto 7)</p>
+        </div>
+
+        <div class="cover-meta">
+            <div class="meta-grid">
+                <div class="meta-item">
+                    <label>Metodología de Estimación</label>
+                    <p>Albrecht / IFPUG (Function Point Analysis)</p>
+                </div>
+                <div class="meta-item">
+                    <label>Base de Datos Implementada</label>
+                    <p>PostgreSQL 15/16 (13 Tablas Normalizadas)</p>
+                </div>
+                <div class="meta-item">
+                    <label>Sistema / Proyecto</label>
+                    <p>LocalMarket SaaS (E-Commerce Multi-Rol)</p>
+                </div>
+                <div class="meta-item">
+                    <label>Lenguaje de Programación</label>
+                    <p>JavaScript Moderno / Node.js & Express / SQL</p>
+                </div>
+                <div class="meta-item">
+                    <label>Puntos de Función No Ajustados (PFNA)</label>
+                    <p>234 PF</p>
+                </div>
+                <div class="meta-item">
+                    <label>Puntos de Función Ajustados (PFA)</label>
+                    <p>269.10 PF (CAF = 1.15)</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="cover-footer">
+            <span>Ingeniería de Software &bull; Métrica de Tamaño Funcional</span>
+            <span>Fecha: Octubre 2026</span>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 1: DEFINICIONES -->
+    <div class="page-break"></div>
+
+    <h1 class="section-title"><span class="number">1</span> Definiciones de los Componentes de Función</h1>
+
+    <p>
+        El análisis por Puntos de Función (FPA) cuantifica el tamaño de un sistema informático a partir de las funcionalidades 
+        que ofrece al usuario, independientemente de la tecnología implementada. Para el proyecto <strong>LocalMarket (Proyecto 7)</strong>, 
+        se definen los cinco componentes estándar de la siguiente manera:
+    </p>
+
+    <div class="callout">
+        <div class="callout-title">1. Entrada Externa (EI - External Input):</div>
+        Procesos elementales en los que se reciben datos desde el exterior de la frontera del sistema para agregar, eliminar 
+        (física o lógicamente) o modificar datos en uno o más Archivos Lógicos Internos (ej. registrar usuario, publicar producto, anular pedido).
+    </div>
+
+    <div class="callout">
+        <div class="callout-title">2. Salida Externa (EO - External Output):</div>
+        Consultas o generación de informes emitidos al exterior que involucran <strong>cálculos derivados matemáticos</strong>, 
+        fórmulas de negocio, agregaciones porcentuales o actualización de estados (ej. balance financiero, ventas mensuales porcentuales, KPIs globales).
+    </div>
+
+    <div class="callout">
+        <div class="callout-title">3. Petición Externa (EQ - External Inquiry):</div>
+        Consultas o peticiones de información enviadas al exterior que <strong>no involucran cálculos derivados</strong> ni alteran 
+        archivos internos, limitándose a recuperar y presentar datos simples o filtrados (ej. catálogo público, lista de pedidos, libreta de domicilios).
+    </div>
+
+    <div class="callout">
+        <div class="callout-title">4. Archivo Lógico Interno (ILF - Internal Logical File):</div>
+        Grupo de datos lógicamente relacionados o información de control que es <strong>alterada directamente por el propio sistema</strong> 
+        (agregando, modificando o eliminando registros). Corresponde a las tablas maestras y transaccionales del proyecto en PostgreSQL.
+    </div>
+
+    <div class="callout">
+        <div class="callout-title">5. Archivo de Interfaz Externa (EIF - External Interface File):</div>
+        Grupo de datos lógicamente relacionados o de control que <strong>no son alterados por el sistema</strong>, sino únicamente 
+        consultados con fines de referencia. Son mantenidos por otro sistema externo ajeno a la aplicación (ej. pasarela de mensajería Wa.me/WhatsApp, catálogo postal SEPOMEX).
+    </div>
+
+    <!-- MATRICES DE COMPLEJIDAD DE REFERENCIA -->
+    <h2 class="subsection-title">Matrices de Complejidad de Referencia</h2>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div>
+            <p style="font-size: 7.5pt; font-weight: bold; margin-bottom: 2px;">Tabla 1. Complejidad para Entradas (EI)</p>
+            <table class="matrix-ref">
+                <tr><th>Archivos Ref. (FTR)</th><th>1 – 4 DET</th><th>5 – 15 DET</th><th>16+ DET</th></tr>
+                <tr><td class="header-col">&lt; 2</td><td>Bajo (3)</td><td>Bajo (3)</td><td>Medio (4)</td></tr>
+                <tr><td class="header-col">2</td><td>Bajo (3)</td><td>Medio (4)</td><td>Alto (6)</td></tr>
+                <tr><td class="header-col">&gt; 2</td><td>Medio (4)</td><td>Alto (6)</td><td>Alto (6)</td></tr>
+            </table>
+        </div>
+        <div>
+            <p style="font-size: 7.5pt; font-weight: bold; margin-bottom: 2px;">Tabla 2. Complejidad para Salidas (EO) y Peticiones (EQ)</p>
+            <table class="matrix-ref">
+                <tr><th>Archivos Ref. (FTR)</th><th>1 – 5 DET</th><th>6 – 19 DET</th><th>20+ DET</th></tr>
+                <tr><td class="header-col">&lt; 2</td><td>Bajo</td><td>Bajo</td><td>Medio</td></tr>
+                <tr><td class="header-col">2 – 3</td><td>Bajo</td><td>Medio</td><td>Alto</td></tr>
+                <tr><td class="header-col">&gt; 3</td><td>Medio</td><td>Alto</td><td>Alto</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px;">
+        <div>
+            <p style="font-size: 7.5pt; font-weight: bold; margin-bottom: 2px;">Tabla 3. Complejidad para Archivos Internos (ILF) y Externos (EIF)</p>
+            <table class="matrix-ref">
+                <tr><th>Elementos Reg. (RET)</th><th>1 – 19 DET</th><th>20 – 50 DET</th><th>51+ DET</th></tr>
+                <tr><td class="header-col">&lt; 2</td><td>Bajo</td><td>Bajo</td><td>Medio</td></tr>
+                <tr><td class="header-col">2 – 5</td><td>Bajo</td><td>Medio</td><td>Alto</td></tr>
+                <tr><td class="header-col">&gt; 5</td><td>Medio</td><td>Alto</td><td>Alto</td></tr>
+            </table>
+        </div>
+        <div>
+            <p style="font-size: 7.5pt; font-weight: bold; margin-bottom: 2px;">Tabla 4. Pesos Puntos de Función No Ajustados</p>
+            <table class="matrix-ref">
+                <tr><th>Componente</th><th>Bajo</th><th>Medio</th><th>Alto</th></tr>
+                <tr><td class="header-col">Entradas (EI)</td><td>3</td><td>4</td><td>6</td></tr>
+                <tr><td class="header-col">Salidas (EO)</td><td>4</td><td>5</td><td>7</td></tr>
+                <tr><td class="header-col">Peticiones (EQ)</td><td>3</td><td>4</td><td>6</td></tr>
+                <tr><td class="header-col">Archivos Internos (ILF)</td><td>7</td><td>10</td><td>15</td></tr>
+                <tr><td class="header-col">Archivos Externos (EIF)</td><td>5</td><td>7</td><td>10</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 2: TABLAS DETALLADAS DE PUNTOS DE FUNCIÓN NO AJUSTADOS -->
+    <div class="page-break"></div>
+
+    <h1 class="section-title"><span class="number">2</span> Asignación de Pesos y Clasificación Detallada</h1>
+
+    <!-- TABLA DE ENTRADAS -->
+    <h2 class="subsection-title">Entradas del Sistema (EI - External Inputs)</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">Núm.</th>
+                <th style="width: 32%;">Entrada (Transacción)</th>
+                <th style="width: 25%;">Archivos referidos (FTR)</th>
+                <th style="width: 14%;">Elem. Datos (DET)</th>
+                <th style="width: 14%;">Nivel</th>
+                <th style="width: 10%;">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td>Registrar Usuario (Alta)</td>
+                <td>2 (USUARIOS, ROLES)</td>
+                <td>6</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>Modificar / Editar Usuario</td>
+                <td>2 (USUARIOS, ROLES)</td>
+                <td>6</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>Suspender / Reactivar Usuario</td>
+                <td>1 (USUARIOS)</td>
+                <td>2</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>Actualizar Perfil de Usuario</td>
+                <td>1 (USUARIOS)</td>
+                <td>5</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>Publicar Producto (Alta)</td>
+                <td>3 (PRODUCTOS, CATEGORIAS, USUARIOS)</td>
+                <td>10</td>
+                <td><span class="badge-level badge-alto">Alto</span></td>
+                <td>6</td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td>Modificar / Editar Producto</td>
+                <td>3 (PRODUCTOS, CATEGORIAS, USUARIOS)</td>
+                <td>11</td>
+                <td><span class="badge-level badge-alto">Alto</span></td>
+                <td>6</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td>Eliminar / Moderar Producto</td>
+                <td>1 (PRODUCTOS)</td>
+                <td>2</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>8</td>
+                <td>Registrar Dirección de Entrega</td>
+                <td>2 (DIRECCIONES_ENTREGA, USUARIOS)</td>
+                <td>6</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>9</td>
+                <td>Generar Pedido de Compra Directa</td>
+                <td>4 (PEDIDOS_VENTAS, DETALLE_VENTA, PRODUCTOS, USUARIOS)</td>
+                <td>9</td>
+                <td><span class="badge-level badge-alto">Alto</span></td>
+                <td>6</td>
+            </tr>
+            <tr>
+                <td>10</td>
+                <td>Actualizar Estado de Pedido</td>
+                <td>1 (PEDIDOS_VENTAS)</td>
+                <td>2</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>11</td>
+                <td>Cancelar / Anular Pedido</td>
+                <td>2 (PEDIDOS_VENTAS, PRODUCTOS)</td>
+                <td>3</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>12</td>
+                <td>Generar Código OTP (Seguridad)</td>
+                <td>2 (VERIFICACIONES_OTP, USUARIOS)</td>
+                <td>4</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>13</td>
+                <td>Validar Código OTP (Intento)</td>
+                <td>2 (VERIFICACIONES_OTP, USUARIOS)</td>
+                <td>4</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>14</td>
+                <td>Desbloquear Cuenta Admin (Reset OTP)</td>
+                <td>2 (VERIFICACIONES_OTP, USUARIOS)</td>
+                <td>3</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>15</td>
+                <td>Registrar Costo Fijo del Vendedor</td>
+                <td>2 (COSTOS_FIJOS, USUARIOS)</td>
+                <td>5</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>16</td>
+                <td>Registrar Pregunta sobre Producto</td>
+                <td>3 (PREGUNTAS_PRODUCTO, PRODUCTOS, USUARIOS)</td>
+                <td>4</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>17</td>
+                <td>Responder Pregunta de Cliente</td>
+                <td>2 (PREGUNTAS_PRODUCTO, PRODUCTOS)</td>
+                <td>3</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>18</td>
+                <td>Registrar / Modificar Categoría</td>
+                <td>1 (CATEGORIAS)</td>
+                <td>4</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr class="subtotal-row">
+                <td colspan="5" style="text-align: right; padding-right: 12px;">Subtotal Entradas (EI)</td>
+                <td>68</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- TABLA DE SALIDAS -->
+    <h2 class="subsection-title">Salidas del Sistema (EO - External Outputs con cálculos derivados)</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">Núm.</th>
+                <th style="width: 32%;">Salida (Informe con cálculo derivado)</th>
+                <th style="width: 25%;">Archivos referidos (FTR)</th>
+                <th style="width: 14%;">Elem. Datos (DET)</th>
+                <th style="width: 14%;">Nivel</th>
+                <th style="width: 10%;">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td>Reporte de KPIs & Métricas Financieras (Total Ingresos, ticket promedio)</td>
+                <td>4 (USUARIOS, PRODUCTOS, PEDIDOS_VENTAS, DETALLE_VENTA)</td>
+                <td>5</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>Informe de Ventas Mensuales (Suma mensual y porcentaje de variación)</td>
+                <td>2 (PEDIDOS_VENTAS, DETALLE_VENTA)</td>
+                <td>4</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>Distribución Porcentual por Categoría (Cálculo de participación %)</td>
+                <td>3 (CATEGORIAS, PRODUCTOS, DETALLE_VENTA)</td>
+                <td>3</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>Balance Financiero & Margen de Utilidad (Ingresos - Costos Fijos/Variables)</td>
+                <td>4 (PEDIDOS_VENTAS, DETALLE_VENTA, PRODUCTOS, COSTOS_FIJOS)</td>
+                <td>6</td>
+                <td><span class="badge-level badge-alto">Alto</span></td>
+                <td>7</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>Alerta de Stock Bajo (Condición matemática stock &le; 5 y déficit reorden)</td>
+                <td>2 (PRODUCTOS, CATEGORIAS)</td>
+                <td>5</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td>Notificación Calculada de Pedido WhatsApp (Total calculado + prefijo internacional)</td>
+                <td>4 (PEDIDOS_VENTAS, DETALLE_VENTA, PRODUCTOS, USUARIOS)</td>
+                <td>7</td>
+                <td><span class="badge-level badge-alto">Alto</span></td>
+                <td>7</td>
+            </tr>
+            <tr class="subtotal-row">
+                <td colspan="5" style="text-align: right; padding-right: 12px;">Subtotal Salidas (EO)</td>
+                <td>31</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- TABLA DE PETICIONES -->
+    <div class="page-break"></div>
+    <h2 class="subsection-title">Peticiones del Sistema (EQ - External Inquiries sin cálculos derivados)</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">Núm.</th>
+                <th style="width: 32%;">Petición (Consulta simple / Listado)</th>
+                <th style="width: 25%;">Archivos referidos (FTR)</th>
+                <th style="width: 14%;">Elem. Datos (DET)</th>
+                <th style="width: 14%;">Nivel</th>
+                <th style="width: 10%;">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td>Listar Catálogo General de Productos (Filtro por categoría/búsqueda)</td>
+                <td>2 (PRODUCTOS, CATEGORIAS)</td>
+                <td>8</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>Consultar Detalle Individual de Producto</td>
+                <td>3 (PRODUCTOS, CATEGORIAS, USUARIOS)</td>
+                <td>8</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>Listar Usuarios Registrados (Tabla en Autenticación)</td>
+                <td>2 (USUARIOS, ROLES)</td>
+                <td>6</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>Consultar Historial de Pedidos y Ventas</td>
+                <td>2 (PEDIDOS_VENTAS, USUARIOS)</td>
+                <td>6</td>
+                <td><span class="badge-level badge-medio">Medio</span></td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>Consultar Historial de Códigos OTP</td>
+                <td>2 (VERIFICACIONES_OTP, USUARIOS)</td>
+                <td>5</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td>Consultar Estado de Bloqueo / Seguridad</td>
+                <td>1 (VERIFICACIONES_OTP)</td>
+                <td>3</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td>Consultar Direcciones de Entrega del Cliente</td>
+                <td>1 (DIRECCIONES_ENTREGA)</td>
+                <td>6</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>8</td>
+                <td>Consultar Preguntas y Respuestas de Producto</td>
+                <td>2 (PREGUNTAS_PRODUCTO, USUARIOS)</td>
+                <td>5</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>9</td>
+                <td>Consultar Lista de Métodos de Pago Disponibles</td>
+                <td>1 (METODOS_PAGO)</td>
+                <td>3</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>10</td>
+                <td>Validación de Inicio de Sesión (Login)</td>
+                <td>2 (USUARIOS, ROLES)</td>
+                <td>5</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>3</td>
+            </tr>
+            <tr class="subtotal-row">
+                <td colspan="5" style="text-align: right; padding-right: 12px;">Subtotal Peticiones (EQ)</td>
+                <td>34</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- TABLA DE ARCHIVOS INTERNOS -->
+    <h2 class="subsection-title">Archivos Lógicos Internos (ILF - 13 Tablas en PostgreSQL)</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">Núm.</th>
+                <th style="width: 32%;">Archivo Interno (Tabla en BD)</th>
+                <th style="width: 25%;">Elem. Registro (RET)</th>
+                <th style="width: 14%;">Elem. Datos (DET)</th>
+                <th style="width: 14%;">Nivel</th>
+                <th style="width: 10%;">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>1</td><td><code class="code-font">ROLES</code></td><td>1</td><td>4</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>2</td><td><code class="code-font">PERMISOS</code></td><td>1</td><td>4</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>3</td><td><code class="code-font">ROLES_PERMISOS</code></td><td>1</td><td>2</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>4</td><td><code class="code-font">USUARIOS</code></td><td>1</td><td>10</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>5</td><td><code class="code-font">VERIFICACIONES_OTP_SEGURIDAD</code></td><td>1</td><td>6</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>6</td><td><code class="code-font">DIRECCIONES_ENTREGA</code></td><td>1</td><td>7</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>7</td><td><code class="code-font">CATEGORIAS</code></td><td>1</td><td>4</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>8</td><td><code class="code-font">PRODUCTOS</code></td><td>1</td><td>13</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>9</td><td><code class="code-font">METODOS_PAGO</code></td><td>1</td><td>4</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>10</td><td><code class="code-font">COSTOS_FIJOS</code></td><td>1</td><td>7</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>11</td><td><code class="code-font">PREGUNTAS_PRODUCTO</code></td><td>1</td><td>7</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>12</td><td><code class="code-font">PEDIDOS_VENTAS</code></td><td>1</td><td>10</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr><td>13</td><td><code class="code-font">DETALLE_VENTA</code></td><td>1</td><td>8</td><td><span class="badge-level badge-bajo">Bajo</span></td><td>7</td></tr>
+            <tr class="subtotal-row">
+                <td colspan="5" style="text-align: right; padding-right: 12px;">Subtotal Archivos Internos (ILF)</td>
+                <td>91</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- TABLA DE ARCHIVOS EXTERNOS -->
+    <h2 class="subsection-title">Archivos de Interfaz Externa (EIF - External Interface Files)</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">Núm.</th>
+                <th style="width: 32%;">Archivo Externo (Interfaz / Servicio)</th>
+                <th style="width: 25%;">Elem. Registro (RET)</th>
+                <th style="width: 14%;">Elem. Datos (DET)</th>
+                <th style="width: 14%;">Nivel</th>
+                <th style="width: 10%;">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td><code class="code-font">API_WHATSAPP_GATEWAY</code> (Esquema de mensajes Wa.me)</td>
+                <td>1</td>
+                <td>4 (tel, msg, token, status)</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td><code class="code-font">SERVICIO_GEO_POSTAL</code> (Códigos postales y estados MX)</td>
+                <td>1</td>
+                <td>4 (cp, estado, municipio, colonia)</td>
+                <td><span class="badge-level badge-bajo">Bajo</span></td>
+                <td>5</td>
+            </tr>
+            <tr class="subtotal-row">
+                <td colspan="5" style="text-align: right; padding-right: 12px;">Subtotal Archivos Externos (EIF)</td>
+                <td>10</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- CONSOLIDADO PFNA -->
+    <div class="highlight-box">
+        <div class="label">Total Puntos de Función No Ajustados (PFNA)</div>
+        <div class="big-number">234 PF</div>
+        <p style="font-size: 8.5pt; color: #475569; margin: 4px 0 0 0; text-align: center;">
+            PFNA = Entradas (68) + Salidas (31) + Peticiones (34) + Archivos Internos (91) + Archivos Externos (10)
+        </p>
+    </div>
+
+    <!-- SECCIÓN 3: PUNTOS DE FUNCIÓN AJUSTADOS -->
+    <div class="page-break"></div>
+
+    <h1 class="section-title"><span class="number">3</span> Puntos de Función Ajustados (PFA)</h1>
+
+    <p>
+        Para obtener el tamaño ajustado de la aplicación, se evalúan las <strong>14 Características Generales del Sistema (GSC)</strong> 
+        propuestas por Albrecht. Cada factor se pondera en una escala de 0 a 5:
+    </p>
+
+    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 12px; margin-bottom: 12px; font-size: 8pt; display: flex; justify-content: space-between;">
+        <span><strong>0:</strong> Sin influencia</span>
+        <span><strong>1:</strong> Incidental</span>
+        <span><strong>2:</strong> Moderado</span>
+        <span><strong>3:</strong> Medio</span>
+        <span><strong>4:</strong> Significativo</span>
+        <span><strong>5:</strong> Esencial</span>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 6%;">Núm.</th>
+                <th style="width: 76%;">Característica General del Sistema (GSC / Albrecht)</th>
+                <th style="width: 10%;">Grado (0-5)</th>
+                <th style="width: 8%;">Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td>
+                <td><strong>¿Requiere el sistema copias de seguridad y de recuperación fiables?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">E-commerce transaccional con inventarios, ventas y pedidos que exige respaldos fiables con pg_dump y atomicidad.</span></td>
+                <td>Significativo</td>
+                <td style="font-weight: bold; text-align: center;">4</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td><strong>¿Se requieren comunicaciones de datos?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Arquitectura cliente-servidor web con llamadas REST API JSON y notificaciones WhatsApp externas.</span></td>
+                <td>Significativo</td>
+                <td style="font-weight: bold; text-align: center;">4</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td><strong>¿Existen funciones de procesamiento distribuido?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Distribución cliente (navegador SPA/Dashboard) y backend Node.js conectado a base de datos PostgreSQL.</span></td>
+                <td>Medio</td>
+                <td style="font-weight: bold; text-align: center;">3</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td><strong>¿Es crítico el rendimiento?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Respuestas en tiempo real en catálogo, compras directas y control de inventario con triggers.</span></td>
+                <td>Significativo</td>
+                <td style="font-weight: bold; text-align: center;">4</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td><strong>¿Será ejecutado el sistema en un entorno operativo fuertemente utilizado?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Servidor Node.js y motor PostgreSQL compartiendo recursos con múltiples clientes concurrentes.</span></td>
+                <td>Medio</td>
+                <td style="font-weight: bold; text-align: center;">3</td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td><strong>¿Requiere el sistema entrada de datos interactiva?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Todos los módulos (productos, compras, usuarios, perfil, OTP) operan mediante formularios en vivo.</span></td>
+                <td>Esencial</td>
+                <td style="font-weight: bold; text-align: center;">5</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td><strong>¿Requiere entrada de datos interactiva que las transacciones se lleven a cabo sobre múltiples pantallas?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">10 módulos diferenciados con navegación por pestañas, modales de stock bajo, filtros y edición en sitio.</span></td>
+                <td>Significativo</td>
+                <td style="font-weight: bold; text-align: center;">4</td>
+            </tr>
+            <tr>
+                <td>8</td>
+                <td><strong>¿Se actualizan los archivos maestros de forma interactiva?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Los archivos maestros de usuarios, inventario de productos y pedidos se actualizan instantáneamente en línea.</span></td>
+                <td>Esencial</td>
+                <td style="font-weight: bold; text-align: center;">5</td>
+            </tr>
+            <tr>
+                <td>9</td>
+                <td><strong>¿Son complejas las entradas, las salidas, los archivos o las peticiones?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Validaciones regex estrictas, control RBAC, triggers PL/pgSQL y generación de códigos OTP temporales.</span></td>
+                <td>Medio</td>
+                <td style="font-weight: bold; text-align: center;">3</td>
+            </tr>
+            <tr>
+                <td>10</td>
+                <td><strong>¿Es complejo el procesamiento interno?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Procedimiento almacenado de venta atómica, bloqueo de seguridad tras 3 fallos y balance de utilidad.</span></td>
+                <td>Medio</td>
+                <td style="font-weight: bold; text-align: center;">3</td>
+            </tr>
+            <tr>
+                <td>11</td>
+                <td><strong>¿Se ha diseñado el código para ser reutilizable?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Enrutadores modulares en Express, helpers de sanitización, vistas SQL y componentes frontend reutilizables.</span></td>
+                <td>Significativo</td>
+                <td style="font-weight: bold; text-align: center;">4</td>
+            </tr>
+            <tr>
+                <td>12</td>
+                <td><strong>¿Están incluidas en el diseño la conversión y la instalación?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Scripts de migración automatizada de base de datos (BD.sql, objetos_bd.sql) incluidos para despliegue.</span></td>
+                <td>Medio</td>
+                <td style="font-weight: bold; text-align: center;">3</td>
+            </tr>
+            <tr>
+                <td>13</td>
+                <td><strong>¿Se ha diseñado el sistema para soportar múltiples instalaciones en diferentes organizaciones?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Arquitectura SaaS parametrizable por roles adaptable a distintos comercios y mercados locales.</span></td>
+                <td>Medio</td>
+                <td style="font-weight: bold; text-align: center;">3</td>
+            </tr>
+            <tr>
+                <td>14</td>
+                <td><strong>¿Se ha diseñado la aplicación para facilitar los cambios y para ser fácilmente utilizada por el usuario?</strong><br>
+                <span style="font-size: 7.5pt; color: #64748b;">Interfaz intuitiva con Tailwind CSS, validaciones automáticas, alertas inmediatas y alta usabilidad.</span></td>
+                <td>Esencial</td>
+                <td style="font-weight: bold; text-align: center;">5</td>
+            </tr>
+            <tr class="subtotal-row">
+                <td colspan="3" style="text-align: right; padding-right: 12px;">Total Grados de Influencia &sum; Fi</td>
+                <td style="text-align: center; font-size: 9pt;">50</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- CÁLCULO DE LA ECUACIÓN -->
+    <h2 class="subsection-title">Cálculo de la Ecuación de Puntos de Función Ajustados (PFA)</h2>
+
+    <div style="background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 14px; margin: 12px 0;">
+        <p style="font-weight: 700; margin-bottom: 6px; color: #0f172a;">Fórmula de Albrecht / IFPUG:</p>
+        <p style="font-family: 'Fira Code', monospace; font-size: 9pt; color: #1e40af; margin-bottom: 8px;">
+            PF = PFNA &times; [ 0.65 + 0.01 &times; &sum;(Fi) ]
+        </p>
+        <p style="font-size: 8.5pt; color: #334155; margin-bottom: 4px;">
+            <strong>1. Factor de Ajuste de Complejidad (CAF):</strong><br>
+            CAF = 0.65 + 0.01 &times; 50 = 0.65 + 0.50 = <strong>1.15</strong>
+        </p>
+        <p style="font-size: 8.5pt; color: #334155; margin-bottom: 4px;">
+            <strong>2. Puntos de Función Ajustados (PFA):</strong><br>
+            PF = 234 &times; 1.15 = <strong>269.10 Puntos de Función</strong>
+        </p>
+    </div>
+
+    <div class="highlight-box">
+        <div class="label">Resultado Final del Proyecto 7 (LocalMarket)</div>
+        <div class="big-number">269.10 PFA</div>
+        <p style="font-size: 8.5pt; color: #475569; margin: 4px 0 0 0; text-align: center;">
+            Estimación funcional completa ajustada por complejidad operativa y técnica.
+        </p>
+    </div>
+
+    <!-- RECONCILIACIÓN LDC / PF -->
+    <h2 class="subsection-title">Reconciliación de Métricas: Estimación de Líneas de Código (LDC / LOC)</h2>
+    <p>
+        Con base en la tabla de equivalencias de lenguajes de programación provista en la práctica para la reconciliación 
+        LDC/PF (QSM / Software Productivity Research):
+    </p>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Lenguaje / Componente</th>
+                <th>Generación / Tipo</th>
+                <th>Factor Promedio (LDC / PF)</th>
+                <th>Estimación de Líneas de Código (LOC)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>JavaScript / Node.js</strong> (Lógica de Aplicación)</td>
+                <td>Lenguaje Orientado a Objetos / Web</td>
+                <td>~53 LDC/PF</td>
+                <td><strong>14,262 Líneas de Código</strong></td>
+            </tr>
+            <tr>
+                <td><strong>PL/pgSQL / SQL ANSI</strong> (Base de Datos)</td>
+                <td>Cuarta Generación (4GL) / Datos</td>
+                <td>~21 LDC/PF</td>
+                <td><strong>5,651 Líneas de Código</strong></td>
+            </tr>
+            <tr class="subtotal-row">
+                <td colspan="3" style="text-align: right; padding-right: 12px;">Esfuerzo Estimado Promedio (JavaScript Full-Stack)</td>
+                <td><strong>~14,000 LOC</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+</body>
+</html>
