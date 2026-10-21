@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalMarket - Panel de Control</title>
+    <!-- PWA & Mobile Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0284c7">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LocalMarket">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/icons/favicon.png">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        navy: {
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#020617'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased font-['Plus_Jakarta_Sans',sans-serif]">
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- SIDEBAR PROFESIONAL LIMPIO (10 MÓDULOS CON NOMBRES DE UNA SOLA PALABRA) -->
+        <aside class="w-64 bg-navy-900 text-slate-300 flex flex-col shadow-2xl z-20 transition-all duration-300">
+            
+            <!-- Header Sidebar (Limpio, sin textos promocionales) -->
+            <div class="p-5 border-b border-slate-800 flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-400 flex items-center justify-center text-white shadow-lg shadow-sky-500/20">
+                    <i class="fa-solid fa-store text-base"></i>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-white tracking-tight">LocalMarket</h1>
+                </div>
+            </div>
+
+            <!-- Menú de 10 Módulos de una sola palabra -->
+            <nav class="flex-1 overflow-y-auto px-3.5 py-4 space-y-1 custom-scrollbar">
+                
+                <a href="#" class="tab-btn active flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_auth" data-roles="admin">
+                    <i class="fa-solid fa-shield-halved w-5 text-center text-cyan-400"></i>
+                    <span>Autenticación</span>
+                </a>
+
+                <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_perfil" data-roles="admin,vendedor,cliente">
+                    <i class="fa-solid fa-user-gear w-5 text-center text-indigo-400"></i>
+                    <span>Perfil</span>
+                </a>
+
+                <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_publicar" data-roles="admin,vendedor">
+                    <i class="fa-solid fa-circle-plus w-5 text-center text-emerald-400"></i>
+                    <span>Productos</span>
+                </a>
+
+                <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_catalogo" data-roles="admin,vendedor,cliente">
+                    <i class="fa-solid fa-boxes-stacked w-5 text-center text-amber-400"></i>
+                    <span>Catálogo</span>
+                </a>
+
+                <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_detalle" data-roles="admin,vendedor,cliente">
+                    <i class="fa-solid fa-bag-shopping w-5 text-center text-rose-400"></i>
+                    <span>Compra</span>
+                </a>
+
+                <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_pedidos" data-roles="admin,vendedor,cliente">
+                    <i class="fa-solid fa-receipt w-5 text-center text-purple-400"></i>
+                    <span>Pedidos</span>
+                </a>
+
+                <!-- Módulos de Administración (Restringidos con RBAC) -->
+                <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_notificaciones" data-roles="admin,vendedor">
+                    <i class="fa-brands fa-whatsapp w-5 text-center text-emerald-400"></i>
+                    <span>Notificaciones</span>
+                </a>
+
+                <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_seguridad" data-roles="admin">
+                    <i class="fa-solid fa-lock w-5 text-center text-red-400"></i>
+                    <span>Seguridad</span>
+                </a>
+
+                <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_admin" data-roles="admin">
+                    <i class="fa-solid fa-chart-pie w-5 text-center text-blue-400"></i>
+                    <span>Métricas</span>
+                </a>
+
+                <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white transition-all" data-target="mod_moderacion" data-roles="admin">
+                    <i class="fa-solid fa-gavel w-5 text-center text-orange-400"></i>
+                    <span>Control</span>
+                </a>
+            </nav>
+
+            <!-- Footer Sidebar Limpio (Sin indicador de Online) -->
+            <div class="p-3.5 border-t border-slate-800 bg-navy-950/50 flex items-center justify-between">
+                <div class="flex items-center space-x-3 overflow-hidden">
+                    <img id="sidebarAvatar" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80" alt="Avatar" class="w-8 h-8 rounded-full object-cover border border-slate-700 flex-shrink-0">
+                    <div class="truncate">
+                        <p id="sidebarUserName" class="text-xs font-bold text-white truncate">Usuario</p>
+                        <p id="sidebarUserRole" class="text-[10px] text-slate-400 uppercase font-semibold">Cliente</p>
+                    </div>
+                </div>
+                <button id="logoutBtn" title="Cerrar Sesión" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all">
+                    <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ÁREA DE CONTENIDO PRINCIPAL -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
+            
+            <!-- Top Header Bar Limpio (Sin etiqueta de base de datos) -->
+            <header class="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between z-10">
+                <div class="flex items-center space-x-3">
+                    <h2 id="activeModuleTitle" class="text-lg font-bold text-slate-800">Autenticación</h2>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <!-- Botón Instalar App PWA -->
+                    <button id="btnInstalarPwa" onclick="window.instalarPwa()" class="hidden flex items-center space-x-2 px-3.5 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-sky-500 to-emerald-500 text-white shadow-sm hover:shadow-md hover:from-sky-400 hover:to-emerald-400 transition-all cursor-pointer">
+                        <i class="fa-solid fa-cloud-arrow-down text-sm"></i>
+                        <span>Instalar App</span>
+                    </button>
+
+                    <!-- Botón / Badge Rediseñado de Stock Bajo -->
+                    <button id="topBtnStockBajo" class="flex items-center space-x-2.5 px-4 py-2 text-sm font-semibold rounded-xl bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100 hover:border-amber-400 transition-all shadow-sm">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-base"></i>
+                        <span id="topStockBajoText">Stock Bajo (<span id="topStockCount">0</span>)</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Banner Visual de Acceso Denegado (RBAC) -->
+            <div id="accessDeniedBanner" class="hidden m-6 p-5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 shadow-sm flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold text-lg">
+                        <i class="fa-solid fa-ban"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm">Acceso Denegado</h4>
+                        <p class="text-xs text-rose-700">Tu rol actual no cuenta con los permisos necesarios para administrar este módulo.</p>
+                    </div>
+                </div>
+                <button onclick="goHomeForRole()" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-sm">
+                    Ir a Inicio
+                </button>
+            </div>
+
+            <!-- Contenedor Scrollable de Módulos -->
+            <div id="mainModulesContainer" class="flex-1 overflow-y-auto p-8 custom-scrollbar space-y-6">
+
+                <!-- ==========================================
+                     MÓDULO 1: AUTENTICACIÓN
+                     ========================================== -->
+                <div id="mod_auth" class="tab-content active space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- Tarjeta de Registro y Edición de Usuario -->
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <h3 id="formUserTitle" class="font-bold text-slate-800 flex items-center space-x-2">
+                                    <i class="fa-solid fa-user-plus text-emerald-500"></i>
+                                    <span>Registro de Usuario</span>
+                                </h3>
+                                <button type="button" id="btnCancelEditUser" class="hidden text-xs text-rose-600 font-bold hover:underline">Cancelar Edición</button>
+                            </div>
+
+                            <form id="formRegistroUsuario" class="space-y-3">
+                                <input type="hidden" id="edit_user_id" value="">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre Completo</label>
+                                    <input type="text" id="reg_nombre" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Correo Electrónico</label>
+                                    <input type="email" id="reg_correo" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Contraseña</label>
+                                    <input type="password" id="reg_password" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Teléfono (Máx. 10 Dígitos Numéricos)</label>
+                                    <input type="tel" id="reg_telefono" required maxlength="10" placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none phone-mask">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Rol</label>
+                                    <select id="reg_rol" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                                        <option value="" selected disabled>Seleccionar...</option>
+                                        <option value="1">Administrador</option>
+                                        <option value="2">Vendedor</option>
+                                        <option value="3">Cliente</option>
+                                    </select>
+                                </div>
+                                <button type="submit" id="btnSubmitUser" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm transition-all shadow-md shadow-emerald-600/20">
+                                    Guardar Usuario
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Tarjeta de Inicio de Sesión -->
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <h3 class="font-bold text-slate-800 flex items-center space-x-2">
+                                    <i class="fa-solid fa-right-to-bracket text-cyan-500"></i>
+                                    <span>Inicio de Sesión</span>
+                                </h3>
+                            </div>
+
+                            <form id="formLoginTester" class="space-y-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Usuario o Correo</label>
+                                    <input type="text" id="log_username" placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Contraseña</label>
+                                    <input type="password" id="log_password" placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-cyan-500 focus:outline-none">
+                                </div>
+                                <div id="loginFeedback" class="alert hidden text-xs p-2.5 rounded-lg font-medium"></div>
+                                <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-lg text-sm transition-all shadow-md">
+                                    Probar Autenticación
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- Tarjeta de Generación & Validación OTP -->
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <h3 class="font-bold text-slate-800 flex items-center space-x-2">
+                                    <i class="fa-solid fa-mobile-screen-button text-purple-500"></i>
+                                    <span>Verificación OTP</span>
+                                </h3>
+                            </div>
+
+                            <div class="text-center space-y-3 p-4 bg-purple-50/50 rounded-xl border border-purple-100">
+                                <p class="text-xs text-slate-600">Código de 6 dígitos generado:</p>
+                                <div id="displayOtpCode" class="text-3xl font-extrabold tracking-widest text-purple-700 font-mono py-1">
+                                    849201
+                                </div>
+                                <button id="btnGenerarOtp" type="button" class="text-xs bg-purple-600 hover:bg-purple-700 text-white font-bold px-4 py-2 rounded-lg transition-all shadow-sm">
+                                    <i class="fa-solid fa-arrows-rotate mr-1"></i> Generar Nuevo Código
+                                </button>
+                            </div>
+
+                            <form id="formValidarOtp" class="space-y-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Validar Código</label>
+                                    <input type="text" id="val_otp_input" placeholder="" maxlength="6" class="w-full text-center tracking-widest font-mono text-base px-3.5 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                                </div>
+                                <div id="otpFeedback" class="alert hidden text-xs p-2.5 rounded-lg font-medium text-center"></div>
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-sm transition-all shadow-sm">
+                                    Validar OTP
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Usuarios Registrados con Botón de Edición -->
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                            <h4 class="font-bold text-slate-700 text-sm flex items-center space-x-2">
+                                <i class="fa-solid fa-users text-slate-500"></i>
+                                <span>Usuarios Registrados</span>
+                            </h4>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table id="tablaUsuariosGeneral" class="w-full text-left text-sm text-slate-600">
+                                <thead class="bg-slate-100 text-xs uppercase font-bold text-slate-600 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-6 py-3">Nombre</th>
+                                        <th class="px-6 py-3">Correo</th>
+                                        <th class="px-6 py-3">Teléfono</th>
+                                        <th class="px-6 py-3">Rol</th>
+                                        <th class="px-6 py-3 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     MÓDULO 2: PERFIL
+                     ========================================== -->
+                <div id="mod_perfil" class="tab-content space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- Tarjeta de Resumen de Perfil -->
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-center space-y-4">
+                            <div class="relative inline-block">
+                                <img id="perfilAvatarPreview" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160" alt="Avatar" class="w-28 h-28 rounded-full object-cover border-4 border-white shadow-xl mx-auto ring-4 ring-emerald-500/30">
+                                <label for="perfil_foto_input" class="absolute bottom-0 right-0 bg-emerald-600 hover:bg-emerald-700 text-white w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-lg transition-all" title="Subir foto">
+                                    <i class="fa-solid fa-camera text-xs"></i>
+                                </label>
+                                <input type="file" id="perfil_foto_input" accept="image/*" class="hidden">
+                            </div>
+
+                            <div>
+                                <h3 id="perfilDisplayName" class="text-lg font-bold text-slate-800">Usuario</h3>
+                                <p id="perfilDisplayEmail" class="text-xs text-slate-500">correo@localmarket.com</p>
+                            </div>
+
+                            <div>
+                                <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 border border-emerald-300">
+                                    <i class="fa-solid fa-circle-check text-emerald-600"></i>
+                                    <span>Cuenta Verificada</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Formulario de Edición de Perfil -->
+                        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+                            <div class="border-b border-slate-100 pb-3">
+                                <h3 class="font-bold text-slate-800 text-base">Actualizar Información Personal</h3>
+                            </div>
+
+                            <form id="formActualizarPerfil" class="space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre Completo</label>
+                                        <input type="text" id="perf_nombre" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Correo Electrónico</label>
+                                        <input type="email" id="perf_correo" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nueva Contraseña (Opcional)</label>
+                                        <input type="password" id="perf_password" placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Confirmar Nueva Contraseña</label>
+                                        <input type="password" id="perf_password_confirm" placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                    </div>
+                                </div>
+
+                                <div class="pt-3 flex justify-end">
+                                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-lg text-sm transition-all shadow-md shadow-emerald-600/20 flex items-center space-x-2">
+                                        <i class="fa-solid fa-floppy-disk"></i>
+                                        <span>Guardar Cambios</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     MÓDULO 3: PRODUCTOS (PUBLICACIÓN Y EDICIÓN - 2 IMÁGENES)
+                     ========================================== -->
+                <div id="mod_publicar" class="tab-content space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-4xl mx-auto space-y-5">
+                        <div class="border-b border-slate-100 pb-3 flex justify-between items-center">
+                            <div>
+                                <h3 id="formProductTitle" class="font-bold text-slate-800 text-lg">Publicación de Producto</h3>
+                                <p class="text-xs text-slate-500">Configura la información del artículo y sube tus imágenes desde el dispositivo.</p>
+                            </div>
+                            <button type="button" id="btnCancelEditProduct" class="hidden text-xs text-rose-600 font-bold hover:underline">Cancelar Edición</button>
+                        </div>
+
+                        <form id="formPublicarProducto" class="space-y-4">
+                            <input type="hidden" id="edit_product_id" value="">
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Título del Producto</label>
+                                    <input type="text" id="pub_titulo" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Categoría</label>
+                                    <select id="pub_categoria" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                                        <option value="" selected disabled>Seleccionar...</option>
+                                        <option value="Suplementos">Suplementos</option>
+                                        <option value="Cafés">Cafés</option>
+                                        <option value="Cápsulas">Cápsulas</option>
+                                        <option value="Aceites">Aceites</option>
+                                        <option value="Cuidado Personal">Cuidado Personal</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Precio de Venta ($ MXN)</label>
+                                    <input type="number" id="pub_precio" min="0" step="0.01" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Costo Unitario ($ MXN)</label>
+                                    <input type="number" id="pub_costo" min="0" step="0.01" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock (Unidades)</label>
+                                    <input type="number" id="pub_stock" min="0" step="1" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                </div>
+
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Descripción Detallada</label>
+                                    <textarea id="pub_descripcion" rows="3" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none"></textarea>
+                                </div>
+                            </div>
+
+                            <!-- CONFIGURACIÓN DE 2 IMÁGENES: PRINCIPAL Y DETALLE -->
+                            <div class="border-t border-slate-100 pt-4 space-y-3">
+                                <label class="block text-xs font-bold text-slate-700 uppercase">Fotografías del Producto (Desde tu Dispositivo)</label>
+                                
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <!-- Imagen 1: Principal (Obligatoria) -->
+                                    <div class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-xl p-4 text-center transition-all bg-slate-50/50">
+                                        <img id="previewImg1" src="https://placehold.co/150x150?text=Foto+Principal" alt="Foto Principal" class="w-28 h-28 object-cover rounded-lg mx-auto mb-2 border border-slate-200">
+                                        <label for="pub_file1" class="text-xs text-emerald-600 font-bold hover:underline cursor-pointer">Seleccionar Imagen Principal</label>
+                                        <input type="file" id="pub_file1" accept="image/*" class="hidden">
+                                        <p class="text-[10px] text-slate-400 mt-1">Portada del Catálogo (Obligatoria)</p>
+                                    </div>
+
+                                    <!-- Imagen 2: Detalle (Opcional) -->
+                                    <div class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-xl p-4 text-center transition-all bg-slate-50/50">
+                                        <img id="previewImg3" src="https://placehold.co/150x150?text=Foto+Detalle" alt="Foto Detalle" class="w-28 h-28 object-cover rounded-lg mx-auto mb-2 border border-slate-200">
+                                        <label for="pub_file3" class="text-xs text-emerald-600 font-bold hover:underline cursor-pointer">Seleccionar Imagen de Detalle</label>
+                                        <input type="file" id="pub_file3" accept="image/*" class="hidden">
+                                        <p class="text-[10px] text-slate-400 mt-1">Empaque o Ángulo (Opcional)</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 flex justify-end">
+                                <button type="submit" id="btnSubmitProduct" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-8 py-3 rounded-lg text-sm transition-all shadow-lg shadow-emerald-600/25 flex items-center space-x-2">
+                                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    <span>Guardar Producto</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     MÓDULO 4: CATÁLOGO
+                     ========================================== -->
+                <div id="mod_catalogo" class="tab-content space-y-6">
+                    
+                    <!-- Barra de Búsqueda y Filtros -->
+                    <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div class="relative w-full md:w-96">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                            <input type="text" id="catalogoSearchInput" placeholder="Buscar productos..." class="w-full pl-10 pr-4 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+
+                        <!-- Filtros por Categoría (5 Categorías Simplificadas) -->
+                        <div class="flex items-center space-x-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 custom-scrollbar">
+                            <button class="cat-filter-btn active px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-white transition-all whitespace-nowrap" data-cat="Todas">Todas</button>
+                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap" data-cat="Suplementos">Suplementos</button>
+                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap" data-cat="Cafés">Cafés</button>
+                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap" data-cat="Cápsulas">Cápsulas</button>
+                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap" data-cat="Aceites">Aceites</button>
+                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all whitespace-nowrap" data-cat="Cuidado Personal">Cuidado Personal</button>
+                        </div>
+                    </div>
+
+                    <!-- GRID DE TARJETAS CON BOTÓN DE EDITAR Y COMPRAR -->
+                    <div id="catalogoGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
+                </div>
+
+                <!-- ==========================================
+                     MÓDULO 5: COMPRA
+                     ========================================== -->
+                <div id="mod_detalle" class="tab-content space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8 max-w-5xl mx-auto">
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                            
+                            <!-- Galería de Fotos -->
+                            <div class="space-y-4">
+                                <div class="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 aspect-square flex items-center justify-center">
+                                    <img id="detailMainImg" src="https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=600" alt="Producto Principal" class="w-full h-full object-cover transition-all duration-300">
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <img id="detailThumb1" src="https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=200" class="cursor-pointer rounded-lg border-2 border-emerald-500 object-cover h-20 w-full hover:opacity-90 transition-all">
+                                    <img id="detailThumb3" src="https://images.unsplash.com/photo-1579613832125-5d34a13ffe0a?w=200" class="cursor-pointer rounded-lg border-2 border-transparent hover:border-emerald-500 object-cover h-20 w-full hover:opacity-90 transition-all">
+                                </div>
+                            </div>
+
+                            <!-- Formulario de Compra Directa -->
+                            <div class="space-y-5">
+                                <div>
+                                    <span id="detailCategoria" class="px-3 py-1 text-xs font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase">
+                                        Suplementos
+                                    </span>
+                                    <h2 id="detailTitulo" class="text-2xl font-bold text-slate-800 mt-2">Malteada Proteica Vegana Vainilla 500g</h2>
+                                    <p id="detailPrecio" class="text-3xl font-extrabold text-emerald-600 mt-1">$280.00 MXN</p>
+                                </div>
+
+                                <p id="detailDescripcion" class="text-sm text-slate-600 leading-relaxed">
+                                    Proteína vegetal a base de chícharo y arroz orgánico, adicionada con vitaminas y minerales.
+                                </p>
+
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-600">
+                                    <p><strong>Vendedor:</strong> <span id="detailVendedor" class="font-bold text-slate-800">Naturista Integral</span></p>
+                                    <p><strong>Disponibilidad:</strong> <span id="detailStockBadge" class="font-bold text-emerald-600">15 unidades en stock</span></p>
+                                    <p><strong>Pago:</strong> <span class="font-semibold text-slate-700">Contra entrega</span></p>
+                                </div>
+
+                                <form id="formCompraDirecta" class="space-y-4 pt-2 border-t border-slate-100">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Cantidad</label>
+                                            <input type="number" id="compra_cantidad" min="1" max="10" placeholder="" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Total</label>
+                                            <input type="text" id="compra_total_preview" readonly placeholder="" class="w-full px-3.5 py-2 text-sm font-bold text-emerald-700 bg-emerald-50/50 rounded-lg border border-emerald-200">
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Dirección de Entrega</label>
+                                        <input type="text" id="compra_direccion" required placeholder="" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                                    </div>
+
+                                    <button type="submit" id="btnConfirmarCompra" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-base transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center space-x-2">
+                                        <i class="fa-solid fa-truck-fast"></i>
+                                        <span>Generar Pedido (Pago Contra Entrega)</span>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     MÓDULO 6: PEDIDOS
+                     ========================================== -->
+                <div id="mod_pedidos" class="tab-content space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-base">Historial de Pedidos y Ventas</h3>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table id="tablaPedidosMaster" class="w-full text-left text-sm text-slate-600">
+                                <thead class="bg-slate-100 text-xs uppercase font-bold text-slate-600 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-6 py-3.5">Folio</th>
+                                        <th class="px-6 py-3.5">Comprador</th>
+                                        <th class="px-6 py-3.5">Fecha</th>
+                                        <th class="px-6 py-3.5">Total</th>
+                                        <th class="px-6 py-3.5">Estado</th>
+                                        <th class="px-6 py-3.5 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     MÓDULO 7: NOTIFICACIONES (ADMIN ONLY)
+                     ========================================== -->
+                <div id="mod_notificaciones" class="tab-content space-y-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start max-w-5xl mx-auto">
+                        
+                        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-5">
+                            <div class="border-b border-slate-100 pb-3">
+                                <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                                    <i class="fa-brands fa-whatsapp text-emerald-500 text-xl"></i>
+                                    <span>Gestor de Mensajería WhatsApp & SMS</span>
+                                </h3>
+                            </div>
+
+                            <form id="formSimularAlerta" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Teléfono Destino (10 Dígitos)</label>
+                                    <input type="tel" id="notif_telefono" maxlength="10" placeholder="" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none phone-mask">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Tipo de Alerta</label>
+                                    <select id="notif_tipo" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                                        <option value="nuevo_pedido">Alerta de Nuevo Pedido</option>
+                                        <option value="en_camino">Pedido en Camino</option>
+                                        <option value="otp_seguridad">Código OTP de Activación</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg text-sm transition-all shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-paper-plane"></i>
+                                    <span>Enviar Notificación</span>
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- VISTA PREVIA DISPOSITIVO MÓVIL -->
+                        <div class="flex justify-center">
+                            <div class="w-80 bg-slate-900 rounded-[40px] p-4 shadow-2xl border-4 border-slate-800 ring-8 ring-slate-900/10">
+                                <div class="w-24 h-4 bg-slate-800 rounded-full mx-auto mb-3"></div>
+
+                                <div class="bg-[#0b141a] text-white rounded-[28px] overflow-hidden flex flex-col h-[460px] border border-slate-800">
+                                    <div class="bg-[#202c33] p-3 flex items-center space-x-3 border-b border-[#2a3942]">
+                                        <div class="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
+                                            LM
+                                        </div>
+                                        <div>
+                                            <p class="text-xs font-bold leading-tight">LocalMarket Bot</p>
+                                            <p class="text-[10px] text-emerald-400">cuenta verificada</p>
+                                        </div>
+                                    </div>
+
+                                    <div id="phoneChatBody" class="flex-1 p-3 overflow-y-auto space-y-3 text-xs custom-scrollbar">
+                                        <div class="bg-[#202c33] text-slate-200 p-3 rounded-xl rounded-tl-none max-w-[90%] space-y-1 shadow-md border-l-4 border-emerald-500">
+                                            <p class="font-bold text-emerald-400">🔔 ¡Nuevo Pedido Recibido!</p>
+                                            <p class="text-[11px]">Orden <strong>#PED-101</strong> generada.</p>
+                                            <p class="text-[11px]">💵 Total: <strong>$137.00 (Contra entrega)</strong></p>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-[#202c33] p-2 flex items-center space-x-2">
+                                        <input type="text" placeholder="" readonly class="flex-1 bg-[#2a3942] text-slate-300 text-[11px] px-3 py-1.5 rounded-full outline-none">
+                                        <div class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs">
+                                            <i class="fa-solid fa-microphone"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     MÓDULO 8: SEGURIDAD (ADMIN ONLY)
+                     ========================================== -->
+                <div id="mod_seguridad" class="tab-content space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-4xl mx-auto space-y-5">
+                        <div class="border-b border-slate-100 pb-3">
+                            <h3 class="font-bold text-slate-800 text-lg flex items-center space-x-2">
+                                <i class="fa-solid fa-shield-virus text-red-500"></i>
+                                <span>Control de Bloqueos de Seguridad</span>
+                            </h3>
+                            <p class="text-xs text-slate-500">Bloqueo automático de 10 minutos ante 3 intentos fallidos.</p>
+                        </div>
+
+                        <div id="securityBanner" class="p-4 rounded-xl border flex items-center justify-between transition-all bg-emerald-50 border-emerald-200 text-emerald-800">
+                            <div class="flex items-center space-x-3">
+                                <i id="securityIcon" class="fa-solid fa-circle-check text-2xl text-emerald-500"></i>
+                                <div>
+                                    <h4 id="securityStatusTitle" class="font-bold text-sm">Sin Bloqueos Activos</h4>
+                                    <p id="securityStatusDesc" class="text-xs">Acceso regular al sistema.</p>
+                                </div>
+                            </div>
+                            <div id="lockCountdownBox" class="hidden font-mono font-bold text-red-600 text-lg">
+                                09:59
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                                <h4 class="font-bold text-xs text-slate-700 uppercase">Simulación</h4>
+                                <button id="btnSimular3Fallos" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs transition-all shadow-sm">
+                                    🚨 Forzar 3 Errores de OTP
+                                </button>
+                            </div>
+
+                            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                                <h4 class="font-bold text-xs text-slate-700 uppercase">Desbloqueo</h4>
+                                <button id="btnDesbloquearAdmin" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs transition-all shadow-sm">
+                                    🔓 Desbloquear Cuenta
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     MÓDULO 9: MÉTRICAS (ADMIN ONLY)
+                     ========================================== -->
+                <div id="mod_admin" class="tab-content space-y-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <!-- Card 1: USUARIOS (Navegable -> mod_auth) -->
+                        <div id="card-usuarios" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-2 hover:shadow-md hover:border-slate-300 hover:bg-slate-50/60 transition-all cursor-pointer group" style="cursor: pointer;" title="Ver módulo de Usuarios / Autenticación">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-700 transition-colors">Usuarios</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-300 group-hover:text-slate-500 transition-colors"></i>
+                            </div>
+                            <p id="kpiUsuarios" class="text-2xl font-extrabold text-slate-800">4</p>
+                        </div>
+
+                        <!-- Card 2: PRODUCTOS (Navegable -> mod_publicar) -->
+                        <div id="card-productos" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-2 hover:shadow-md hover:border-slate-300 hover:bg-slate-50/60 transition-all cursor-pointer group" style="cursor: pointer;" title="Ver módulo de Productos">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-700 transition-colors">Productos</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-300 group-hover:text-slate-500 transition-colors"></i>
+                            </div>
+                            <p id="kpiProductos" class="text-2xl font-extrabold text-slate-800">6</p>
+                        </div>
+
+                        <!-- Card 3: PEDIDOS (Navegable -> mod_pedidos) -->
+                        <div id="card-pedidos" class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-2 hover:shadow-md hover:border-slate-300 hover:bg-slate-50/60 transition-all cursor-pointer group" style="cursor: pointer;" title="Ver módulo de Pedidos">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-500 group-hover:text-slate-700 transition-colors">Pedidos</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-xs text-slate-300 group-hover:text-slate-500 transition-colors"></i>
+                            </div>
+                            <p id="kpiPedidos" class="text-2xl font-extrabold text-slate-800">12</p>
+                        </div>
+
+                        <!-- Card 4: INGRESOS (No navegable) -->
+                        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Ingresos</span>
+                            <p id="kpiIngresos" class="text-2xl font-extrabold text-emerald-600">$4,850.00</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+                            <h4 class="font-bold text-slate-800 text-sm">Ventas Mensuales</h4>
+                            <div class="space-y-3" id="salesBarContainer"></div>
+                        </div>
+                        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+                            <h4 class="font-bold text-slate-800 text-sm">Categorías</h4>
+                            <div class="space-y-4" id="categoriesBarContainer"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     MÓDULO 10: CONTROL (ADMIN ONLY)
+                     ========================================== -->
+                <div id="mod_moderacion" class="tab-content space-y-6">
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                                <i class="fa-solid fa-sliders text-cyan-600"></i>
+                                <span>Control de Publicaciones</span>
+                            </h4>
+                            <div class="relative w-full sm:w-80">
+                                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                                <input type="text" id="inputBuscarPublicaciones" placeholder="Buscar publicaciones por nombre..." class="w-full pl-9 pr-3.5 py-1.5 text-xs rounded-lg border border-slate-300 focus:ring-2 focus:ring-cyan-500 focus:outline-none bg-white">
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table id="tablaModeracionProd" class="w-full text-left text-sm text-slate-600">
+                                <thead class="bg-slate-100 text-xs uppercase font-bold text-slate-600 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-6 py-3">Producto</th>
+                                        <th class="px-6 py-3">Precio</th>
+                                        <th class="px-6 py-3">Stock</th>
+                                        <th class="px-6 py-3">Estado</th>
+                                        <th class="px-6 py-3 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div class="p-4 bg-slate-50 border-b border-slate-200">
+                            <h4 class="font-bold text-slate-800 text-sm">Bajas y Control de Usuarios</h4>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table id="tablaModeracionUsers" class="w-full text-left text-sm text-slate-600">
+                                <thead class="bg-slate-100 text-xs uppercase font-bold text-slate-600 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-6 py-3">Nombre</th>
+                                        <th class="px-6 py-3">Correo</th>
+                                        <th class="px-6 py-3">Rol</th>
+                                        <th class="px-6 py-3">Estado</th>
+                                        <th class="px-6 py-3 text-center">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL REPORTE DE STOCK BAJO -->
+    <div id="modalStockBajo" class="modal-backdrop">
+        <div class="modal-box max-w-xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <h3 class="font-bold text-slate-800 text-base text-amber-700">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 mr-2"></i>Stock Bajo (&le; 5 Unidades)
+                </h3>
+                <button id="closeModalStockBtn" class="text-slate-400 hover:text-slate-700 text-lg">&times;</button>
+            </div>
+            <div class="py-4">
+                <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                    <table id="tablaReporteStockBajo" class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-50 font-bold text-slate-700 border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-2.5">Producto</th>
+                                <th class="px-4 py-2.5">Categoría</th>
+                                <th class="px-4 py-2.5">Stock</th>
+                                <th class="px-4 py-2.5 text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-200 text-right">
+                <button id="btnCerrarModalStock" class="px-5 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs transition-all">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDICIÓN DE PUBLICACIÓN (MÓDULO DE CONTROL) -->
+    <div id="modalEditarPubControl" class="modal-backdrop">
+        <div class="modal-box max-w-md">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                    <i class="fa-solid fa-pen-to-square text-sky-600"></i>
+                    <span>Editar Publicación</span>
+                </h3>
+                <button type="button" id="btnCerrarModalEditPub" class="text-slate-400 hover:text-slate-700 text-lg">&times;</button>
+            </div>
+            <form id="formModalEditPub" class="py-4 space-y-3">
+                <input type="hidden" id="edit_pub_id">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre / Título del Producto</label>
+                    <input type="text" id="edit_pub_titulo" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Precio ($)</label>
+                        <input type="number" step="0.01" min="0" id="edit_pub_precio" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Stock</label>
+                        <input type="number" min="0" id="edit_pub_stock" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                </div>
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
+                    <button type="button" id="btnCancelarModalEditPub" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs transition-all shadow-sm">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL EDICIÓN DE USUARIO (MÓDULO DE CONTROL) -->
+    <div id="modalEditarUserControl" class="modal-backdrop">
+        <div class="modal-box max-w-md">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
+                    <i class="fa-solid fa-user-pen text-indigo-600"></i>
+                    <span>Editar Usuario</span>
+                </h3>
+                <button type="button" id="btnCerrarModalEditUser" class="text-slate-400 hover:text-slate-700 text-lg">&times;</button>
+            </div>
+            <form id="formModalEditUser" class="py-4 space-y-3">
+                <input type="hidden" id="edit_user_ctrl_id">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nombre Completo</label>
+                    <input type="text" id="edit_user_ctrl_nombre" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Correo Electrónico</label>
+                    <input type="email" id="edit_user_ctrl_correo" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Rol</label>
+                    <select id="edit_user_ctrl_rol" required class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                        <option value="1">Administrador</option>
+                        <option value="2">Vendedor</option>
+                        <option value="3">Cliente</option>
+                    </select>
+                </div>
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
+                    <button type="button" id="btnCancelarModalEditUser" class="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-all">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-sm">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+    <script src="pwa.js"></script>
+</body>
+</html>
