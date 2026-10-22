@@ -89,23 +89,6 @@ let fallbackProducts = [
         vendedor_nombre: 'BioJardín',
         moderado: false,
         estado_publicacion: 'activo'
-    },
-    {
-        id_producto: 6,
-        id_vendedor: 1,
-        id_categoria: 1,
-        titulo: 'Spirulina en Polvo Orgánica 250g',
-        descripcion: 'Superalimento rico en clorofila, proteínas y minerales esenciales.',
-        precio: 210.00,
-        costo_unitario: 120.00,
-        stock: 2,
-        imagen_1: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
-        imagen_2: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
-        imagen_3: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400',
-        categoria_nombre: 'Suplementos',
-        vendedor_nombre: 'EcoNutrición',
-        moderado: false,
-        estado_publicacion: 'activo'
     }
 ];
 

@@ -240,6 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadModuleData(moduleId) {
         if (moduleId === 'mod_auth') { fetchOtpHistory(); cargarUsuarios(); }
         if (moduleId === 'mod_catalogo') fetchCatalogo();
+        if (moduleId === 'mod_detalle') renderCompraView();
         if (moduleId === 'mod_pedidos') cargarPedidos();
         if (moduleId === 'mod_admin' && isAdmin) fetchAdminMetrics();
         if (moduleId === 'mod_moderacion' && isAdmin) fetchModerationData();
@@ -1096,44 +1097,86 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // MÓDULO 5: COMPRA
+    // MÓDULO 5: COMPRA (DETALLE DINÁMICO Y CHECKOUT)
     // ==========================================
     let currentSelectedProduct = null;
 
+    function renderCompraView() {
+        const estadoVacio = document.getElementById('compraEstadoVacio');
+        const detalleProd = document.getElementById('compraDetalleProducto');
+        if (!currentSelectedProduct) {
+            if (estadoVacio) estadoVacio.classList.remove('hidden');
+            if (detalleProd) detalleProd.classList.add('hidden');
+        } else {
+            if (estadoVacio) estadoVacio.classList.add('hidden');
+            if (detalleProd) detalleProd.classList.remove('hidden');
+        }
+    }
+
+    const btnIrAlCatalogo = document.getElementById('btnIrAlCatalogo');
+    if (btnIrAlCatalogo) {
+        btnIrAlCatalogo.addEventListener('click', () => switchTab('mod_catalogo'));
+    }
+
+    const btnVolverAlCatalogo = document.getElementById('btnVolverAlCatalogo');
+    if (btnVolverAlCatalogo) {
+        btnVolverAlCatalogo.addEventListener('click', () => switchTab('mod_catalogo'));
+    }
+
     function openProductDetail(product) {
+        if (!product) return;
         currentSelectedProduct = product;
+        renderCompraView();
+
         const stock = parseInt(product.stock) || 0;
         const isAgotado = stock <= 0;
 
-        document.getElementById('detailTitulo').textContent = product.titulo;
-        document.getElementById('detailCategoria').textContent = product.categoria_nombre || 'General';
-        document.getElementById('detailPrecio').textContent = `$${parseFloat(product.precio).toFixed(2)} MXN`;
-        document.getElementById('detailDescripcion').textContent = product.descripcion || 'Sin descripción';
-        document.getElementById('detailVendedor').textContent = product.vendedor_nombre || 'Vendedor LocalMarket';
+        const elTitulo = document.getElementById('detailTitulo');
+        if (elTitulo) elTitulo.textContent = product.titulo || 'Sin título';
+
+        const elCategoria = document.getElementById('detailCategoria');
+        if (elCategoria) elCategoria.textContent = product.categoria_nombre || 'General';
+
+        const elPrecio = document.getElementById('detailPrecio');
+        if (elPrecio) elPrecio.textContent = `$${parseFloat(product.precio || 0).toFixed(2)} MXN`;
+
+        const elDescripcion = document.getElementById('detailDescripcion');
+        if (elDescripcion) elDescripcion.textContent = product.descripcion || 'Sin descripción disponible para este producto.';
+
+        const elVendedor = document.getElementById('detailVendedor');
+        if (elVendedor) elVendedor.textContent = product.vendedor_nombre || 'Vendedor LocalMarket';
 
         const stockBadge = document.getElementById('detailStockBadge');
         const cantInput = document.getElementById('compra_cantidad');
         const btnConfirmarCompra = document.getElementById('btnConfirmarCompra');
 
         if (isAgotado) {
-            stockBadge.textContent = 'Agotado (0 unidades en stock)';
-            stockBadge.className = 'font-bold text-red-600';
-            cantInput.value = 0;
-            cantInput.min = 0;
-            cantInput.max = 0;
-            cantInput.disabled = true;
+            if (stockBadge) {
+                stockBadge.textContent = 'Agotado (0 unidades en stock)';
+                stockBadge.className = 'font-bold text-red-600';
+            }
+            if (cantInput) {
+                cantInput.value = 0;
+                cantInput.min = 0;
+                cantInput.max = 0;
+                cantInput.disabled = true;
+            }
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.disabled = true;
                 btnConfirmarCompra.className = 'w-full bg-slate-200 text-slate-400 font-bold py-3 rounded-xl text-base cursor-not-allowed flex items-center justify-center space-x-2';
                 btnConfirmarCompra.innerHTML = '<i class="fa-solid fa-ban"></i><span>Producto Agotado (No disponible)</span>';
             }
         } else {
-            stockBadge.textContent = `${stock} unidades en stock`;
-            stockBadge.className = 'font-bold text-emerald-600';
-            cantInput.value = 1;
-            cantInput.min = 1;
-            cantInput.max = stock;
-            cantInput.disabled = false;
+            if (stockBadge) {
+                stockBadge.textContent = `${stock} unidades en stock`;
+                stockBadge.className = 'font-bold text-emerald-600';
+            }
+            if (cantInput) {
+                cantInput.value = 1;
+                cantInput.min = 1;
+                cantInput.max = stock;
+                cantInput.disabled = false;
+            }
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.disabled = false;
                 btnConfirmarCompra.className = 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-base transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center space-x-2';
@@ -1141,19 +1184,37 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const img1 = product.imagen_1 || 'https://placehold.co/600x600?text=IMG1';
-        const img3 = product.imagen_3 || img1;
+        const fallbackImg = 'https://placehold.co/600x600?text=Sin+Imagen';
+        const img1 = product.imagen_1 || fallbackImg;
+        const img2 = product.imagen_2 || img1;
+        const img3 = product.imagen_3 || img2;
 
         const mainImg = document.getElementById('detailMainImg');
         const t1 = document.getElementById('detailThumb1');
         const t3 = document.getElementById('detailThumb3');
+        const thumbsContainer = document.getElementById('detailThumbsContainer');
 
-        mainImg.src = img1;
-        t1.src = img1;
-        t3.src = img3;
+        if (mainImg) {
+            mainImg.src = img1;
+            mainImg.alt = product.titulo || 'Producto Principal';
+        }
 
-        t1.onclick = () => { mainImg.src = img1; };
-        t3.onclick = () => { mainImg.src = img3; };
+        if (t1) {
+            t1.src = img1;
+            t1.onclick = () => { if (mainImg) mainImg.src = img1; };
+        }
+        if (t3) {
+            t3.src = img3;
+            t3.onclick = () => { if (mainImg) mainImg.src = img3; };
+        }
+
+        if (thumbsContainer) {
+            if (!product.imagen_2 && !product.imagen_3) {
+                thumbsContainer.classList.add('hidden');
+            } else {
+                thumbsContainer.classList.remove('hidden');
+            }
+        }
 
         updateCompraTotal();
         switchTab('mod_detalle');
@@ -1172,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const cant = parseInt(document.getElementById('compra_cantidad').value) || 1;
-        const total = cant * parseFloat(currentSelectedProduct.precio);
+        const total = cant * parseFloat(currentSelectedProduct.precio || 0);
         document.getElementById('compra_total_preview').value = `$${total.toFixed(2)} MXN`;
     }
 
@@ -1195,7 +1256,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return alert(`⚠️ Stock insuficiente. Solo hay ${stock} unidades disponibles.`);
             }
 
-            const total = cant * parseFloat(currentSelectedProduct.precio);
+            const total = cant * parseFloat(currentSelectedProduct.precio || 0);
             const direccion = document.getElementById('compra_direccion').value.trim();
 
             const payload = {
@@ -1218,6 +1279,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await res.json();
                 if (res.ok && data.success) {
                     alert(`🎉 ¡Pedido generado con éxito! Folio #${data.data.id_pedido}`);
+                    currentSelectedProduct = null;
+                    renderCompraView();
                     await fetchCatalogo();
                     await fetchPedidos();
                     if (isAdmin) await fetchAdminMetrics();
@@ -1854,6 +1917,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Inicialización y carga automática de datos
+    renderCompraView();
     loadAllData();
     goHomeForRole();
 });
