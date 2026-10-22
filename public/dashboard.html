@@ -675,41 +675,137 @@
                      MÓDULO 8: SEGURIDAD (ADMIN ONLY)
                      ========================================== -->
                 <div id="mod_seguridad" class="tab-content space-y-6">
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 max-w-4xl mx-auto space-y-5">
-                        <div class="border-b border-slate-100 pb-3">
-                            <h3 class="font-bold text-slate-800 text-lg flex items-center space-x-2">
-                                <i class="fa-solid fa-shield-virus text-red-500"></i>
-                                <span>Control de Bloqueos de Seguridad</span>
-                            </h3>
-                            <p class="text-xs text-slate-500">Bloqueo automático de 10 minutos ante 3 intentos fallidos.</p>
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 max-w-4xl mx-auto space-y-6">
+                        <!-- Cabecera del Módulo -->
+                        <div class="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-lg flex items-center space-x-2">
+                                    <i class="fa-solid fa-shield-virus text-red-500"></i>
+                                    <span>Control de Bloqueos de Seguridad y OTP</span>
+                                </h3>
+                                <p class="text-xs text-slate-500">Congelamiento automático de 10 minutos ante 3 intentos fallidos consecutivos.</p>
+                            </div>
+                            <span class="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                <i class="fa-solid fa-lock text-[10px]"></i>
+                                <span>Seguridad Perimetral RBAC</span>
+                            </span>
                         </div>
 
+                        <!-- 1. SELECTOR Y DETALLE DE USUARIO -->
+                        <div class="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <div>
+                                    <label for="usuario-bloqueo" class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
+                                        Usuario Objetivo de Seguridad:
+                                    </label>
+                                    <p class="text-xs text-slate-500">Selecciona el usuario sobre el cual actuarán las simulaciones de bloqueo o desbloqueo.</p>
+                                </div>
+                                <select id="usuario-bloqueo" class="px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-red-500 focus:outline-none shadow-sm min-w-[280px]">
+                                    <option value="" disabled selected>Cargando usuarios registrados...</option>
+                                </select>
+                            </div>
+
+                            <!-- Detalle visual del usuario seleccionado -->
+                            <div id="detalleUsuarioBloqueo" class="p-4 bg-white rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-4 shadow-sm">
+                                <div class="flex items-center space-x-3.5">
+                                    <div id="userBloqueoAvatar" class="w-10 h-10 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-xs shadow-sm">
+                                        AD
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center space-x-2">
+                                            <h5 id="userBloqueoNombre" class="font-bold text-slate-800 text-sm">Administrador</h5>
+                                            <span id="userBloqueoRol" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">Administrador</span>
+                                        </div>
+                                        <p id="userBloqueoCorreo" class="text-xs text-slate-500 font-mono">admin@localmarket.com</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-xs text-slate-500 font-medium">Estado de Cuenta:</span>
+                                    <span id="userBloqueoEstadoBadge" class="px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        Activa
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Banner de Estado de Seguridad General / Usuario -->
                         <div id="securityBanner" class="p-4 rounded-xl border flex items-center justify-between transition-all bg-emerald-50 border-emerald-200 text-emerald-800">
                             <div class="flex items-center space-x-3">
                                 <i id="securityIcon" class="fa-solid fa-circle-check text-2xl text-emerald-500"></i>
                                 <div>
                                     <h4 id="securityStatusTitle" class="font-bold text-sm">Sin Bloqueos Activos</h4>
-                                    <p id="securityStatusDesc" class="text-xs">Acceso regular al sistema.</p>
+                                    <p id="securityStatusDesc" class="text-xs">Acceso regular y validado al sistema.</p>
                                 </div>
                             </div>
-                            <div id="lockCountdownBox" class="hidden font-mono font-bold text-red-600 text-lg">
-                                09:59
+                            <div id="lockCountdownBox" class="hidden font-mono font-bold text-red-600 text-lg px-3 py-1 bg-red-100/60 rounded-lg border border-red-300">
+                                10:00
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                                <h4 class="font-bold text-xs text-slate-700 uppercase">Simulación</h4>
-                                <button id="btnSimular3Fallos" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg text-xs transition-all shadow-sm">
-                                    🚨 Forzar 3 Errores de OTP
+                        <!-- 3. ACCIONES DINÁMICAS (Forzar 3 Errores / Desbloquear Cuenta) -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="p-5 rounded-xl bg-red-50/50 border border-red-200 space-y-3 flex flex-col justify-between">
+                                <div class="space-y-1">
+                                    <h4 class="font-bold text-xs text-red-800 uppercase flex items-center space-x-1.5">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                        <span>Simulación de 3 Errores OTP</span>
+                                    </h4>
+                                    <p class="text-xs text-slate-600">Fuerza 3 fallos consecutivos en el usuario seleccionado y bloquea su cuenta por 10 minutos en PostgreSQL.</p>
+                                </div>
+                                <button id="btnSimular3Fallos" type="button" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-red-600/20 flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-ban"></i>
+                                    <span>Forzar 3 Errores de OTP</span>
                                 </button>
                             </div>
 
-                            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                                <h4 class="font-bold text-xs text-slate-700 uppercase">Desbloqueo</h4>
-                                <button id="btnDesbloquearAdmin" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs transition-all shadow-sm">
-                                    🔓 Desbloquear Cuenta
+                            <div class="p-5 rounded-xl bg-slate-50 border border-slate-200 space-y-3 flex flex-col justify-between">
+                                <div class="space-y-1">
+                                    <h4 class="font-bold text-xs text-slate-800 uppercase flex items-center space-x-1.5">
+                                        <i class="fa-solid fa-lock-open text-emerald-600"></i>
+                                        <span>Desbloqueo de Cuenta</span>
+                                    </h4>
+                                    <p class="text-xs text-slate-600">Levanta de inmediato la restricción temporal del usuario seleccionado y restablece su estado a 'Activa'.</p>
+                                </div>
+                                <button id="btnDesbloquearAdmin" type="button" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-slate-800/20 flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-key"></i>
+                                    <span>Desbloquear Cuenta</span>
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- 2. TABLA DE CUENTAS BLOQUEADAS -->
+                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                            <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fa-solid fa-user-lock text-red-600"></i>
+                                    <h4 class="font-bold text-slate-800 text-sm">Cuentas Actualmente Bloqueadas (Intentos Fallidos)</h4>
+                                </div>
+                                <span id="badgeTotalBloqueados" class="px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                                    0 bloqueadas
+                                </span>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table id="tablaCuentasBloqueadas" class="w-full text-left text-sm text-slate-600">
+                                    <thead class="bg-slate-100 text-[11px] uppercase font-bold text-slate-600 border-b border-slate-200">
+                                        <tr>
+                                            <th class="px-5 py-3">Usuario</th>
+                                            <th class="px-5 py-3">Correo Electrónico</th>
+                                            <th class="px-5 py-3">Fecha / Hora Bloqueo</th>
+                                            <th class="px-5 py-3 text-center">Tiempo Restante (10 min)</th>
+                                            <th class="px-5 py-3 text-center">Estado</th>
+                                            <th class="px-5 py-3 text-center">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbodyCuentasBloqueadas" class="divide-y divide-slate-100">
+                                        <tr>
+                                            <td colspan="6" class="px-5 py-8 text-center text-xs text-slate-400">
+                                                <i class="fa-solid fa-circle-check text-emerald-500 text-base mb-1 block"></i>
+                                                No hay cuentas bloqueadas en este momento. Todos los accesos se encuentran regulares.
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>

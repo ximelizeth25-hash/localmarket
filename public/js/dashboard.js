@@ -312,19 +312,27 @@ document.addEventListener('DOMContentLoaded', () => {
             const correo = u.correo || u.email || '-';
             const telefono = u.telefono || u.phone || '-';
             const rol = u.nombre_rol || u.rol || 'Cliente';
-            const isSuspended = !!(u.suspendido || u.estado_cuenta === 'suspendido');
+            const isBlocked = (u.estado_cuenta === 'bloqueado');
+            const isSuspended = !isBlocked && !!(u.suspendido || u.estado_cuenta === 'suspendido');
             const isVerif = (u.verificado || u.otp_verificado) ? '<span class="text-emerald-500 font-bold ml-1" title="Verificado">✓</span>' : '';
 
+            let badgeHtml = '';
+            if (isBlocked) {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800 border border-red-300">${rol} (Bloqueada)</span>`;
+            } else if (isSuspended) {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300">${rol} (Suspendido)</span>`;
+            } else {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">${rol}</span>`;
+            }
+
             const tr = document.createElement('tr');
-            tr.className = `border-b border-slate-100 transition-all hover:bg-slate-50/50 ${isSuspended ? 'bg-amber-50/40' : ''}`;
+            tr.className = `border-b border-slate-100 transition-all hover:bg-slate-50/50 ${isBlocked ? 'bg-red-50/40' : (isSuspended ? 'bg-amber-50/40' : '')}`;
             tr.innerHTML = `
                 <td class="px-6 py-3.5 font-bold text-slate-800">${nombre} ${isVerif}</td>
                 <td class="px-6 py-3.5">${correo}</td>
                 <td class="px-6 py-3.5">${telefono}</td>
                 <td class="px-6 py-3.5">
-                    <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isSuspended ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-100 text-slate-700 border border-slate-200'}">
-                        ${rol}${isSuspended ? ' (Suspendido)' : ''}
-                    </span>
+                    ${badgeHtml}
                 </td>
                 <td class="px-6 py-3.5 text-center">
                     <div class="inline-flex items-center space-x-1.5">
@@ -547,10 +555,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             window.usuariosRegistrados = usersList;
             renderUsersInTable(usersList);
+            if (typeof poblarSelectorBloqueo === 'function') {
+                poblarSelectorBloqueo(usersList);
+            }
         } catch (error) {
             console.error('Error cargando usuarios:', error);
             window.usuariosRegistrados = window.usuariosRegistrados || defaultMainUsers;
             renderUsersInTable(window.usuariosRegistrados);
+            if (typeof poblarSelectorBloqueo === 'function') {
+                poblarSelectorBloqueo(window.usuariosRegistrados);
+            }
         }
     };
     const fetchUsuariosTable = window.cargarUsuarios;
@@ -1409,59 +1423,329 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // MÓDULO 8: SEGURIDAD (ADMIN ONLY)
     // ==========================================
+    let securityCountdownInterval = null;
+    let currentLockedUsersList = [];
+
+    function actualizarDetalleUsuarioBloqueo(targetUserId) {
+        const users = window.usuariosRegistrados || defaultMainUsers;
+        let u = users.find(x => x.id_usuario == targetUserId);
+        if (!u) {
+            u = {
+                id_usuario: currentUser.id_usuario || 1,
+                nombre: currentUser.nombre || 'Administrador',
+                correo: currentUser.correo || 'admin@localmarket.com',
+                nombre_rol: currentUser.nombre_rol || 'Administrador',
+                estado_cuenta: 'activo'
+            };
+        }
+
+        const avatarEl = document.getElementById('userBloqueoAvatar');
+        const nombreEl = document.getElementById('userBloqueoNombre');
+        const rolEl = document.getElementById('userBloqueoRol');
+        const correoEl = document.getElementById('userBloqueoCorreo');
+        const badgeEl = document.getElementById('userBloqueoEstadoBadge');
+
+        const initialLetters = (u.nombre || 'US').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'LM';
+        if (avatarEl) avatarEl.textContent = initialLetters;
+        if (nombreEl) nombreEl.textContent = u.nombre || 'Usuario';
+        if (rolEl) rolEl.textContent = u.nombre_rol || u.rol || 'Cliente';
+        if (correoEl) correoEl.textContent = u.correo || u.email || 'correo@localmarket.com';
+
+        // Determinar si este usuario específico está bloqueado
+        const isLocked = currentLockedUsersList.some(b => b.id_usuario == u.id_usuario) || (u.estado_cuenta === 'bloqueado');
+        const isSuspended = !isLocked && !!(u.suspendido || u.estado_cuenta === 'suspendido');
+
+        if (badgeEl) {
+            if (isLocked) {
+                badgeEl.className = 'px-3 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800 border border-red-300';
+                badgeEl.textContent = 'Bloqueada';
+            } else if (isSuspended) {
+                badgeEl.className = 'px-3 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+                badgeEl.textContent = 'Suspendida';
+            } else {
+                badgeEl.className = 'px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+                badgeEl.textContent = 'Activa';
+            }
+        }
+
+        // Actualizar Banner informativo con respecto al usuario seleccionado
+        const banner = document.getElementById('securityBanner');
+        const icon = document.getElementById('securityIcon');
+        const title = document.getElementById('securityStatusTitle');
+        const desc = document.getElementById('securityStatusDesc');
+        const countdownBox = document.getElementById('lockCountdownBox');
+
+        if (banner && icon && title && desc && countdownBox) {
+            const lockedInfo = currentLockedUsersList.find(b => b.id_usuario == u.id_usuario);
+            if (lockedInfo || isLocked) {
+                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-red-50 border-red-300 text-red-800';
+                icon.className = 'fa-solid fa-triangle-exclamation text-2xl text-red-600';
+                title.textContent = `🚨 ¡Cuenta de ${u.nombre} Bloqueada por Seguridad!`;
+                desc.textContent = 'Se detectaron 3 intentos fallidos consecutivos de OTP. Acceso congelado temporalmente por 10 minutos.';
+                countdownBox.classList.remove('hidden');
+                const mins = lockedInfo ? lockedInfo.minutosRestantes : 10;
+                const secs = lockedInfo ? lockedInfo.segundosRestantes : 0;
+                countdownBox.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            } else {
+                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-emerald-50 border-emerald-200 text-emerald-800';
+                icon.className = 'fa-solid fa-circle-check text-2xl text-emerald-500';
+                title.textContent = `Sin Bloqueos Activos (${u.nombre})`;
+                desc.textContent = 'Acceso regular y validado al sistema.';
+                countdownBox.classList.add('hidden');
+            }
+        }
+    }
+
+    function poblarSelectorBloqueo(users) {
+        const select = document.getElementById('usuario-bloqueo');
+        if (!select) return;
+
+        const currentVal = select.value;
+        const userList = (users && users.length > 0) ? users : (window.usuariosRegistrados || defaultMainUsers);
+
+        select.innerHTML = '';
+        userList.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id_usuario;
+            const rolLabel = u.nombre_rol || u.rol || 'Cliente';
+            const estadoLabel = u.estado_cuenta === 'bloqueado' ? ' [BLOQUEADA]' : (u.suspendido || u.estado_cuenta === 'suspendido' ? ' [SUSPENDIDO]' : '');
+            opt.textContent = `${u.nombre} (${u.correo || u.email || 'sin-correo'}) - ${rolLabel}${estadoLabel}`;
+            select.appendChild(opt);
+        });
+
+        // Selección por defecto: mantener selección actual, o seleccionar usuario activo por defecto
+        if (currentVal && userList.some(u => u.id_usuario == currentVal)) {
+            select.value = currentVal;
+        } else {
+            const activeUserInList = userList.find(u => 
+                (currentUser.id_usuario && u.id_usuario == currentUser.id_usuario) ||
+                (currentUser.correo && u.correo && u.correo.toLowerCase() === currentUser.correo.toLowerCase()) ||
+                (u.nombre && u.nombre.toLowerCase().includes('administrador'))
+            );
+            if (activeUserInList) {
+                select.value = activeUserInList.id_usuario;
+            } else if (select.options.length > 0) {
+                select.selectedIndex = 0;
+            }
+        }
+
+        actualizarDetalleUsuarioBloqueo(select.value);
+    }
+
     async function checkSecurityStatus() {
         if (!isAdmin) return;
         try {
             const res = await fetch('/api/otp');
             const data = await res.json();
-            const banner = document.getElementById('securityBanner');
-            const icon = document.getElementById('securityIcon');
-            const title = document.getElementById('securityStatusTitle');
-            const desc = document.getElementById('securityStatusDesc');
-            const countdownBox = document.getElementById('lockCountdownBox');
+            
+            currentLockedUsersList = Array.isArray(data.lockedUsers) ? data.lockedUsers : [];
 
-            if (!banner) return;
+            // 1. Poblar Selector y Detalle
+            const users = window.usuariosRegistrados || defaultMainUsers;
+            poblarSelectorBloqueo(users);
 
-            if (data.lockState && data.lockState.locked) {
-                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-red-50 border-red-300 text-red-800';
-                icon.className = 'fa-solid fa-triangle-exclamation text-2xl text-red-600';
-                title.textContent = '🚨 ¡Cuenta Bloqueada por Seguridad!';
-                desc.textContent = 'Se detectaron 3 intentos fallidos consecutivos de OTP. Acceso congelado por 10 minutos.';
-                countdownBox.classList.remove('hidden');
-            } else {
-                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-emerald-50 border-emerald-200 text-emerald-800';
-                icon.className = 'fa-solid fa-circle-check text-2xl text-emerald-500';
-                title.textContent = 'Sin Bloqueos Activos';
-                desc.textContent = 'Acceso regular al sistema.';
-                countdownBox.classList.add('hidden');
+            // 2. Renderizar Tabla de Cuentas Bloqueadas
+            const tbody = document.getElementById('tbodyCuentasBloqueadas');
+            const badgeTotal = document.getElementById('badgeTotalBloqueados');
+
+            if (badgeTotal) {
+                badgeTotal.textContent = `${currentLockedUsersList.length} bloqueada${currentLockedUsersList.length === 1 ? '' : 's'}`;
+                if (currentLockedUsersList.length > 0) {
+                    badgeTotal.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800 border border-red-200';
+                } else {
+                    badgeTotal.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200';
+                }
             }
-        } catch (e) {}
+
+            if (tbody) {
+                tbody.innerHTML = '';
+                if (currentLockedUsersList.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-5 py-8 text-center text-xs text-slate-400">
+                                <i class="fa-solid fa-circle-check text-emerald-500 text-base mb-1 block"></i>
+                                No hay cuentas bloqueadas en este momento. Todos los accesos se encuentran regulares.
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    currentLockedUsersList.forEach(b => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-red-50/30 transition-all border-b border-slate-100';
+                        const initials = (b.nombre || 'US').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
+                        const fechaTxt = b.fecha_bloqueo ? new Date(b.fecha_bloqueo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Reciente';
+                        const fechaDia = b.fecha_bloqueo ? new Date(b.fecha_bloqueo).toLocaleDateString() : '';
+
+                        tr.innerHTML = `
+                            <td class="px-5 py-3 font-bold text-slate-800">
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-7 h-7 rounded-full bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                        ${initials}
+                                    </div>
+                                    <div class="truncate">
+                                        <p class="font-bold text-xs text-slate-800 leading-tight truncate">${b.nombre || 'Usuario'}</p>
+                                        <span class="text-[10px] text-slate-400 uppercase font-semibold">${b.rol || 'Cliente'}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3 text-xs font-mono text-slate-600">${b.correo || '-'}</td>
+                            <td class="px-5 py-3 text-xs text-slate-600">
+                                <span class="font-semibold text-slate-700">${fechaTxt}</span>
+                                <span class="text-[10px] text-slate-400 block">${fechaDia}</span>
+                            </td>
+                            <td class="px-5 py-3 text-center font-mono font-bold text-red-600 text-xs">
+                                <span class="ticker-restante" data-lock-until="${b.lockUntil}">
+                                    ${String(b.minutosRestantes).padStart(2, '0')}:${String(b.segundosRestantes).padStart(2, '0')}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3 text-center">
+                                <span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-red-100 text-red-800 border border-red-300">
+                                    Bloqueada
+                                </span>
+                            </td>
+                            <td class="px-5 py-3 text-center">
+                                <button type="button" class="btn-desbloquear-row px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center space-x-1 mx-auto" data-id="${b.id_usuario}">
+                                    <i class="fa-solid fa-lock-open text-[10px]"></i>
+                                    <span>Desbloquear</span>
+                                </button>
+                            </td>
+                        `;
+
+                        tr.querySelector('.btn-desbloquear-row').addEventListener('click', () => {
+                            ejecutarDesbloqueoSeguridad(b.id_usuario);
+                        });
+
+                        tbody.appendChild(tr);
+                    });
+                }
+            }
+
+            // Iniciar intervalo de cuenta regresiva de 1 segundo si no está activo
+            if (!securityCountdownInterval) {
+                securityCountdownInterval = setInterval(() => {
+                    const now = new Date().getTime();
+                    let anyRemaining = false;
+
+                    document.querySelectorAll('.ticker-restante').forEach(el => {
+                        const lockUntilStr = el.getAttribute('data-lock-until');
+                        if (lockUntilStr) {
+                            const diff = Math.max(0, Math.ceil((new Date(lockUntilStr).getTime() - now) / 1000));
+                            const mins = Math.floor(diff / 60);
+                            const secs = diff % 60;
+                            el.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                            if (diff > 0) anyRemaining = true;
+                        }
+                    });
+
+                    // Actualizar caja de cuenta regresiva del banner si aplica
+                    const countdownBox = document.getElementById('lockCountdownBox');
+                    const select = document.getElementById('usuario-bloqueo');
+                    if (countdownBox && !countdownBox.classList.contains('hidden') && select) {
+                        const selId = select.value;
+                        const b = currentLockedUsersList.find(x => x.id_usuario == selId);
+                        if (b && b.lockUntil) {
+                            const diff = Math.max(0, Math.ceil((new Date(b.lockUntil).getTime() - now) / 1000));
+                            const mins = Math.floor(diff / 60);
+                            const secs = diff % 60;
+                            countdownBox.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                        }
+                    }
+
+                    // Si se completaron los 10 min, refrescar estado
+                    if (currentLockedUsersList.length > 0 && !anyRemaining) {
+                        checkSecurityStatus();
+                        if (typeof window.cargarUsuarios === 'function') window.cargarUsuarios();
+                    }
+                }, 1000);
+            }
+
+        } catch (e) {
+            console.error('Error en checkSecurityStatus:', e);
+        }
     }
 
-    const btnSimular3Fallos = document.getElementById('btnSimular3Fallos');
-    if (btnSimular3Fallos) {
-        btnSimular3Fallos.addEventListener('click', async () => {
-            for (let i = 1; i <= 3; i++) {
-                await fetch('/api/otp/validar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ codigo: '000000' })
-                });
-            }
-            alert('🚨 Se registraron 3 fallos consecutivos. Sistema bloqueado durante 10 minutos.');
-            await checkSecurityStatus();
-            await fetchOtpHistory();
+    // Listener para cuando el usuario cambia el select de usuario objetivo
+    const selectUsuarioBloqueo = document.getElementById('usuario-bloqueo');
+    if (selectUsuarioBloqueo) {
+        selectUsuarioBloqueo.addEventListener('change', (e) => {
+            actualizarDetalleUsuarioBloqueo(e.target.value);
         });
     }
 
+    // Función auxiliar para desbloquear cuenta
+    async function ejecutarDesbloqueoSeguridad(targetId) {
+        try {
+            const res = await fetch('/api/otp/desbloquear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id_usuario: targetId ? parseInt(targetId) : undefined })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Actualizar en memoria local
+                if (window.usuariosRegistrados) {
+                    if (targetId) {
+                        const u = window.usuariosRegistrados.find(x => x.id_usuario == targetId);
+                        if (u) u.estado_cuenta = 'activo';
+                    } else {
+                        window.usuariosRegistrados.forEach(u => {
+                            if (u.estado_cuenta === 'bloqueado') u.estado_cuenta = 'activo';
+                        });
+                    }
+                }
+                alert('🔓 ' + (data.message || 'Cuenta desbloqueada exitosamente y restablecida a estado Activa.'));
+                await checkSecurityStatus();
+                await window.cargarUsuarios();
+                if (typeof fetchModerationData === 'function') await fetchModerationData();
+                if (typeof fetchOtpHistory === 'function') await fetchOtpHistory();
+            } else {
+                alert(data.message || 'Error al desbloquear cuenta.');
+            }
+        } catch (err) {
+            console.error('Error al desbloquear:', err);
+        }
+    }
+
+    // 3. ACCIONES DINÁMICAS: Botón Simular 3 Fallos
+    const btnSimular3Fallos = document.getElementById('btnSimular3Fallos');
+    if (btnSimular3Fallos) {
+        btnSimular3Fallos.addEventListener('click', async () => {
+            const select = document.getElementById('usuario-bloqueo');
+            const targetId = select && select.value ? select.value : (currentUser.id_usuario || 1);
+
+            try {
+                const res = await fetch('/api/otp/bloquear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_usuario: parseInt(targetId) })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (window.usuariosRegistrados) {
+                        const u = window.usuariosRegistrados.find(x => x.id_usuario == targetId);
+                        if (u) u.estado_cuenta = 'bloqueado';
+                    }
+                    alert(`🚨 Se forzaron 3 fallos consecutivos de OTP.\nLa cuenta ha sido bloqueada temporalmente por 10 minutos y registrada como 'Bloqueada'.`);
+                    await checkSecurityStatus();
+                    await window.cargarUsuarios();
+                    if (typeof fetchModerationData === 'function') await fetchModerationData();
+                    if (typeof fetchOtpHistory === 'function') await fetchOtpHistory();
+                } else {
+                    alert(data.message || 'Error al forzar bloqueo de seguridad.');
+                }
+            } catch (err) {
+                console.error('Error al simular 3 fallos:', err);
+            }
+        });
+    }
+
+    // 3. ACCIONES DINÁMICAS: Botón Desbloquear Cuenta
     const btnDesbloquearAdmin = document.getElementById('btnDesbloquearAdmin');
     if (btnDesbloquearAdmin) {
         btnDesbloquearAdmin.addEventListener('click', async () => {
-            const res = await fetch('/api/otp/desbloquear', { method: 'POST' });
-            const data = await res.json();
-            alert(data.message || 'Desbloqueado.');
-            await checkSecurityStatus();
-            await fetchOtpHistory();
+            const select = document.getElementById('usuario-bloqueo');
+            const targetId = select && select.value ? select.value : null;
+            await ejecutarDesbloqueoSeguridad(targetId);
         });
     }
 
@@ -1759,16 +2043,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 uTbody.innerHTML = '';
                 const users = (uResult.success && Array.isArray(uResult.data)) ? uResult.data : [];
                 users.forEach(u => {
-                    const isSuspended = u.suspendido || u.estado_cuenta === 'suspendido';
+                    const isBlocked = (u.estado_cuenta === 'bloqueado');
+                    const isSuspended = !isBlocked && (u.suspendido || u.estado_cuenta === 'suspendido');
                     const tr = document.createElement('tr');
-                    tr.className = 'border-b border-slate-100 transition-all hover:bg-slate-50/50';
+                    tr.className = `border-b border-slate-100 transition-all hover:bg-slate-50/50 ${isBlocked ? 'bg-red-50/30' : ''}`;
                     tr.innerHTML = `
                         <td class="px-6 py-3.5 font-bold text-slate-800">${u.nombre}</td>
                         <td class="px-6 py-3.5 text-xs text-slate-600">${u.correo}</td>
                         <td class="px-6 py-3.5"><span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">${u.nombre_rol || 'Cliente'}</span></td>
                         <td class="px-6 py-3.5">
-                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
-                                ${isSuspended ? 'Suspendido' : 'Activa'}
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isBlocked ? 'bg-red-100 text-red-800 border border-red-300' : (isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')}">
+                                ${isBlocked ? 'Bloqueada' : (isSuspended ? 'Suspendido' : 'Activa')}
                             </span>
                         </td>
                         <td class="px-6 py-3.5 text-center">

@@ -15,7 +15,39 @@ let securityLockState = {
     intentos: 0
 };
 
+// Mapa de cuentas bloqueadas por id_usuario: id_usuario -> { id_usuario, nombre, correo, rol, fecha_bloqueo, lockUntil }
+let blockedUsersMap = new Map();
+
+function limpiarBloqueosExpirados() {
+    const ahora = new Date();
+    for (const [id, info] of blockedUsersMap.entries()) {
+        if (ahora >= new Date(info.lockUntil)) {
+            blockedUsersMap.delete(id);
+            db.query('UPDATE USUARIOS SET estado_cuenta = $1 WHERE id_usuario = $2 AND estado_cuenta = $3', ['activo', id, 'bloqueado'])
+                .catch(() => {});
+        }
+    }
+}
+
 async function getOtpHistory(req, res, next) {
+    limpiarBloqueosExpirados();
+    const lockedUsers = Array.from(blockedUsersMap.values()).map(b => {
+        const remainingSeconds = Math.max(0, Math.ceil((new Date(b.lockUntil) - new Date()) / 1000));
+        return {
+            ...b,
+            remainingSeconds,
+            minutosRestantes: Math.floor(remainingSeconds / 60),
+            segundosRestantes: remainingSeconds % 60
+        };
+    });
+
+    const hasAnyLock = lockedUsers.length > 0;
+    const globalLockState = {
+        locked: hasAnyLock,
+        totalBloqueados: lockedUsers.length,
+        lockUntil: hasAnyLock ? lockedUsers[0].lockUntil : null
+    };
+
     try {
         const result = await db.query(`
             SELECT o.id_otp, o.id_usuario, o.codigo_otp, o.intentos_fallidos, 
@@ -27,12 +59,12 @@ async function getOtpHistory(req, res, next) {
         `);
 
         if (result.rows.length === 0) {
-            return res.status(200).json({ success: true, data: fallbackOTP, lockState: securityLockState });
+            return res.status(200).json({ success: true, data: fallbackOTP, lockState: globalLockState, lockedUsers });
         }
-        return res.status(200).json({ success: true, data: result.rows, lockState: securityLockState });
+        return res.status(200).json({ success: true, data: result.rows, lockState: globalLockState, lockedUsers });
     } catch (err) {
         console.warn('DB Fallback en getOtpHistory:', err.message);
-        return res.status(200).json({ success: true, message: 'Fallback local', data: fallbackOTP, lockState: securityLockState });
+        return res.status(200).json({ success: true, message: 'Fallback local', data: fallbackOTP, lockState: globalLockState, lockedUsers });
     }
 }
 
@@ -122,19 +154,103 @@ async function validarOtp(req, res, next) {
     }
 }
 
+async function bloquearUsuario(req, res, next) {
+    let { id_usuario } = req.body;
+    id_usuario = parseInt(id_usuario) || 1;
+
+    try {
+        let nombre = 'Usuario';
+        let correo = 'usuario@localmarket.com';
+        let rol = 'Cliente';
+
+        // Consultar datos reales del usuario
+        try {
+            const uRes = await db.query('SELECT u.id_usuario, u.nombre, u.correo, COALESCE(r.nombre_rol, \'Cliente\') as rol FROM USUARIOS u LEFT JOIN ROLES r ON u.id_rol = r.id_rol WHERE u.id_usuario = $1', [id_usuario]);
+            if (uRes.rows.length > 0) {
+                nombre = uRes.rows[0].nombre;
+                correo = uRes.rows[0].correo;
+                rol = uRes.rows[0].rol;
+            }
+        } catch (e) {}
+
+        const fecha_bloqueo = new Date();
+        const lockUntil = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+        const remainingSeconds = 600;
+
+        blockedUsersMap.set(id_usuario, {
+            id_usuario,
+            nombre,
+            correo,
+            rol,
+            fecha_bloqueo: fecha_bloqueo.toISOString(),
+            lockUntil: lockUntil.toISOString(),
+            motivo: '3 errores consecutivos de OTP'
+        });
+
+        securityLockState.locked = true;
+        securityLockState.lockUntil = lockUntil;
+        securityLockState.intentos = 3;
+
+        // Actualizar estado_cuenta en PostgreSQL
+        await db.query('UPDATE USUARIOS SET estado_cuenta = $1, otp_verificado = false WHERE id_usuario = $2', ['bloqueado', id_usuario]);
+
+        // Registrar intento fallido en VERIFICACIONES_OTP
+        try {
+            await db.query('INSERT INTO VERIFICACIONES_OTP (id_usuario, codigo_otp, intentos_fallidos) VALUES ($1, $2, $3)', [id_usuario, 'ERR-OTP', 3]);
+        } catch (e) {}
+
+        return res.status(200).json({
+            success: true,
+            message: `Cuenta de ${nombre} (${correo}) bloqueada por 10 minutos por 3 fallos consecutivos de OTP.`,
+            data: {
+                id_usuario,
+                nombre,
+                correo,
+                rol,
+                fecha_bloqueo: fecha_bloqueo.toISOString(),
+                lockUntil: lockUntil.toISOString(),
+                remainingSeconds
+            }
+        });
+    } catch (err) {
+        console.error('Error al bloquear usuario:', err);
+        return res.status(500).json({ success: false, message: 'Error al bloquear usuario' });
+    }
+}
+
 async function desbloquearOtp(req, res, next) {
-    securityLockState.locked = false;
-    securityLockState.intentos = 0;
-    securityLockState.lockUntil = null;
-    if (fallbackOTP[0]) fallbackOTP[0].intentos_fallidos = 0;
-    return res.status(200).json({ success: true, message: 'Cuenta desbloqueada manualmente por el administrador.' });
+    let { id_usuario } = req.body;
+    
+    try {
+        if (id_usuario) {
+            id_usuario = parseInt(id_usuario);
+            blockedUsersMap.delete(id_usuario);
+            await db.query('UPDATE USUARIOS SET estado_cuenta = $1, otp_verificado = true WHERE id_usuario = $2', ['activo', id_usuario]);
+        } else {
+            // Desbloquear todos
+            blockedUsersMap.clear();
+            await db.query('UPDATE USUARIOS SET estado_cuenta = $1, otp_verificado = true WHERE estado_cuenta = $2', ['activo', 'bloqueado']);
+        }
+
+        securityLockState.locked = blockedUsersMap.size > 0;
+        securityLockState.intentos = 0;
+        securityLockState.lockUntil = blockedUsersMap.size > 0 ? Array.from(blockedUsersMap.values())[0].lockUntil : null;
+        if (fallbackOTP[0]) fallbackOTP[0].intentos_fallidos = 0;
+
+        return res.status(200).json({ success: true, message: 'Cuenta desbloqueada exitosamente y estado reactivado.' });
+    } catch (err) {
+        console.error('Error al desbloquear:', err);
+        return res.status(500).json({ success: false, message: 'Error al desbloquear cuenta.' });
+    }
 }
 
 module.exports = {
     getOtpHistory,
     generateOtp,
     validarOtp,
+    bloquearUsuario,
     desbloquearOtp,
     securityLockState,
+    blockedUsersMap,
     fallbackOTP
 };
