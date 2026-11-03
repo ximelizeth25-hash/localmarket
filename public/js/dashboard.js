@@ -140,11 +140,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tabs.forEach(t => {
             if (t.getAttribute('data-target') === targetId) {
-                t.classList.add('active', 'bg-slate-800', 'text-white');
-                t.classList.remove('text-slate-300');
+                t.classList.add('active', 'bg-[#195618]', 'text-white', 'border-l-4', 'border-[#88BD79]');
+                t.classList.remove('text-[#A8C1A0]', 'text-slate-300');
             } else {
-                t.classList.remove('active', 'bg-slate-800', 'text-white');
-                t.classList.add('text-slate-300');
+                t.classList.remove('active', 'bg-[#195618]', 'border-l-4', 'border-[#88BD79]', 'bg-slate-800');
+                t.classList.add('text-[#A8C1A0]');
             }
         });
 
@@ -314,19 +314,23 @@ document.addEventListener('DOMContentLoaded', () => {
             const rol = u.nombre_rol || u.rol || 'Cliente';
             const isBlocked = (u.estado_cuenta === 'bloqueado');
             const isSuspended = !isBlocked && !!(u.suspendido || u.estado_cuenta === 'suspendido');
-            const isVerif = (u.verificado || u.otp_verificado) ? '<span class="text-emerald-500 font-bold ml-1" title="Verificado">✓</span>' : '';
+            const isVerif = (u.verificado || u.otp_verificado) ? '<span class="text-[#195618] font-bold ml-1" title="Verificado">✓</span>' : '';
 
             let badgeHtml = '';
             if (isBlocked) {
                 badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800 border border-red-300">${rol} (Bloqueada)</span>`;
             } else if (isSuspended) {
                 badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300">${rol} (Suspendido)</span>`;
+            } else if (rol.toLowerCase().includes('admin')) {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-[#5E7824] text-white border border-[#5E7824]">${rol}</span>`;
+            } else if (rol.toLowerCase().includes('vendedor')) {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-[#A8C1A0]/40 text-[#195618] border border-[#5C8754]/50">${rol}</span>`;
             } else {
-                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">${rol}</span>`;
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-[#C5DB9E]/50 text-[#195618] border border-[#93A981]/60">${rol}</span>`;
             }
 
             const tr = document.createElement('tr');
-            tr.className = `border-b border-slate-100 transition-all hover:bg-slate-50/50 ${isBlocked ? 'bg-red-50/40' : (isSuspended ? 'bg-amber-50/40' : '')}`;
+            tr.className = `border-b border-slate-100 transition-all hover:bg-[#C5DB9E]/10 ${isBlocked ? 'bg-red-50/40' : (isSuspended ? 'bg-amber-50/40' : '')}`;
             tr.innerHTML = `
                 <td class="px-6 py-3.5 font-bold text-slate-800">${nombre} ${isVerif}</td>
                 <td class="px-6 py-3.5">${correo}</td>
@@ -336,11 +340,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 </td>
                 <td class="px-6 py-3.5 text-center">
                     <div class="inline-flex items-center space-x-1.5">
-                        <button type="button" class="btn-user-edit px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all flex items-center space-x-1">
+                        <button type="button" class="btn-user-edit px-2.5 py-1 text-xs font-bold rounded-lg bg-[#A8C1A0]/30 text-[#195618] border border-[#93A981]/50 hover:bg-[#A8C1A0]/60 transition-all flex items-center space-x-1">
                             <i class="fa-solid fa-pen-to-square"></i>
                             <span>Editar</span>
                         </button>
-                        <button type="button" class="btn-user-suspend px-2.5 py-1 text-xs font-bold rounded-lg ${isSuspended ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'} transition-all flex items-center space-x-1">
+                        <button type="button" class="btn-user-suspend px-2.5 py-1 text-xs font-bold rounded-lg ${isSuspended ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200' : 'bg-[#5E7824]/10 text-[#5E7824] border border-[#5E7824]/40 hover:bg-[#5E7824]/20'} transition-all flex items-center space-x-1">
                             <i class="fa-solid fa-user-slash"></i>
                             <span>${isSuspended ? 'Reactivar' : 'Suspender'}</span>
                         </button>
@@ -369,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('reg_password').value = '';
             document.getElementById('reg_telefono').value = '';
             document.getElementById('reg_rol').selectedIndex = 0;
-            formUserTitle.innerHTML = '<i class="fa-solid fa-user-plus text-emerald-500"></i><span>Registro de Usuario</span>';
+            formUserTitle.innerHTML = '<i class="fa-solid fa-user-plus text-[#5C8754]"></i><span>Registro de Usuario</span>';
             btnSubmitUser.textContent = 'Guardar Usuario';
             btnCancelEditUser.classList.add('hidden');
         });
@@ -444,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('reg_password').value = '';
                     document.getElementById('reg_telefono').value = '';
                     document.getElementById('reg_rol').selectedIndex = 0;
-                    formUserTitle.innerHTML = '<i class="fa-solid fa-user-plus text-emerald-500"></i><span>Registro de Usuario</span>';
+                    formUserTitle.innerHTML = '<i class="fa-solid fa-user-plus text-[#5C8754]"></i><span>Registro de Usuario</span>';
                     btnSubmitUser.textContent = 'Guardar Usuario';
                     if (btnCancelEditUser) btnCancelEditUser.classList.add('hidden');
 
@@ -973,11 +977,11 @@ document.addEventListener('DOMContentLoaded', () => {
     catFilterBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             catFilterBtns.forEach(b => {
-                b.classList.remove('active', 'bg-slate-800', 'text-white');
-                b.classList.add('bg-slate-100', 'text-slate-600');
+                b.classList.remove('active', 'bg-[#195618]', 'text-white', 'shadow-sm', 'bg-slate-800');
+                b.classList.add('bg-[#C5DB9E]/30', 'text-[#195618]', 'border', 'border-[#93A981]/50');
             });
-            btn.classList.add('active', 'bg-slate-800', 'text-white');
-            btn.classList.remove('bg-slate-100', 'text-slate-600');
+            btn.classList.add('active', 'bg-[#195618]', 'text-white', 'shadow-sm');
+            btn.classList.remove('bg-[#C5DB9E]/30', 'text-[#195618]', 'bg-slate-100', 'text-slate-600');
             currentCategoryFilter = btn.getAttribute('data-cat');
             fetchCatalogo();
         });
@@ -1006,29 +1010,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     const isAgotado = stock === 0;
                     const isLowStock = stock > 0 && stock <= 5;
 
-                    let stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">En Existencia (${stock})</span>`;
+                    let stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]">En Existencia (${stock})</span>`;
                     if (isAgotado) {
                         stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-red-50 text-red-700 border border-red-200">Agotado (0)</span>`;
                     } else if (isLowStock) {
-                        stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-700 border border-amber-200">⚠️ Stock Bajo (${stock})</span>`;
+                        stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-800 border border-amber-300">⚠️ Stock Bajo (${stock})</span>`;
                     }
 
                     const card = document.createElement('div');
-                    card.className = `bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between ${p.moderado ? 'opacity-50 grayscale' : ''}`;
+                    card.className = `bg-white rounded-2xl border border-[#93A981]/40 shadow-sm hover:shadow-md hover:border-[#5C8754] transition-all overflow-hidden flex flex-col justify-between ${p.moderado ? 'opacity-50 grayscale' : ''}`;
                     card.innerHTML = `
                         <div>
-                            <div class="relative aspect-video bg-slate-100 overflow-hidden">
+                            <div class="relative aspect-video bg-[#C5DB9E]/15 overflow-hidden">
                                 <img src="${p.imagen_1 || 'https://placehold.co/400x250?text=Sin+Imagen'}" alt="${p.titulo}" class="w-full h-full object-cover">
-                                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 backdrop-blur-sm text-slate-800 shadow-sm">
+                                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-white/95 backdrop-blur-sm text-[#195618] border border-[#93A981]/40 shadow-xs">
                                     ${p.categoria_nombre || 'General'}
                                 </span>
                             </div>
 
                             <div class="p-4 space-y-2">
-                                <h4 class="font-bold text-slate-800 text-sm line-clamp-1">${p.titulo}</h4>
+                                <h4 class="font-extrabold text-[#195618] text-sm line-clamp-1">${p.titulo}</h4>
                                 <p class="text-xs text-slate-500 line-clamp-2">${p.descripcion || 'Sin descripción'}</p>
                                 <div class="flex items-center justify-between pt-2">
-                                    <p class="text-lg font-extrabold text-emerald-600">$${parseFloat(p.precio).toFixed(2)}</p>
+                                    <p class="text-lg font-black text-[#195618] tabular-nums">$${parseFloat(p.precio).toFixed(2)}</p>
                                     ${stockBadgeHtml}
                                 </div>
                             </div>
@@ -1036,11 +1040,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         <!-- Botones de Acción: Comprar y Editar -->
                         <div class="p-4 pt-0 space-y-2">
-                            <button class="btn-ver-detalle w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${isAgotado ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'}" ${isAgotado ? 'disabled' : ''}>
+                            <button class="btn-ver-detalle w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${isAgotado ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-[#195618] hover:bg-[#134412] text-white shadow-md shadow-[#195618]/20 active:scale-[0.99]'}" ${isAgotado ? 'disabled' : ''}>
                                 <i class="fa-solid fa-cart-shopping"></i>
                                 <span>${isAgotado ? 'Agotado' : 'Comprar / Detalle'}</span>
                             </button>
-                            <button class="btn-editar-prod w-full py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all flex items-center justify-center space-x-1.5">
+                            <button class="btn-editar-prod w-full py-2 rounded-xl text-xs font-bold bg-[#C5DB9E]/30 hover:bg-[#C5DB9E]/60 text-[#195618] border border-[#93A981]/40 transition-all flex items-center justify-center space-x-1.5">
                                 <i class="fa-solid fa-pen-to-square"></i>
                                 <span>Editar Producto</span>
                             </button>
@@ -1143,14 +1147,14 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             stockBadge.textContent = `${stock} unidades en stock`;
-            stockBadge.className = 'font-bold text-emerald-600';
+            stockBadge.className = 'font-extrabold text-[#195618]';
             cantInput.value = 1;
             cantInput.min = 1;
             cantInput.max = stock;
             cantInput.disabled = false;
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.disabled = false;
-                btnConfirmarCompra.className = 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-base transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center space-x-2';
+                btnConfirmarCompra.className = 'w-full bg-[#195618] hover:bg-[#134412] text-white font-bold py-3.5 rounded-xl text-base transition-all shadow-lg shadow-[#195618]/25 flex items-center justify-center space-x-2';
                 btnConfirmarCompra.innerHTML = '<i class="fa-solid fa-truck-fast"></i><span>Generar Pedido (Pago Contra Entrega)</span>';
             }
         }
@@ -1271,9 +1275,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (orders.length > 0) {
                     orders.forEach(order => {
                         const fecha = order.fecha_pedido ? String(order.fecha_pedido).substring(0, 10) : 'Hoy';
-                        let badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
-                        if (order.estado === 'Completado') badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                        if (order.estado === 'En camino') badgeClass = 'bg-cyan-50 text-cyan-700 border-cyan-200';
+                        let badgeClass = 'bg-[#5E7824]/15 text-[#5E7824] border-[#5E7824]/40';
+                        if (order.estado === 'Completado') badgeClass = 'bg-[#9BBB54]/25 text-[#195618] border-[#9BBB54]';
+                        if (order.estado === 'En camino') badgeClass = 'bg-[#88BD79]/25 text-[#195618] border-[#88BD79]';
                         if (order.estado === 'Cancelado') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
 
                         const isCancelable = order.estado !== 'Completado' && order.estado !== 'Cancelado';
@@ -1282,10 +1286,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (isAdmin || isVendedor) {
                             accionesHtml = `
                                 <div class="inline-flex items-center space-x-1.5">
-                                    <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-100 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'En camino')">
+                                    <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-[#88BD79]/20 text-[#195618] border border-[#88BD79] hover:bg-[#88BD79]/40 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'En camino')">
                                         🚚 En camino
                                     </button>
-                                    <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'Completado')">
+                                    <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54] hover:bg-[#9BBB54]/50 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'Completado')">
                                         ✔ Entregado
                                     </button>
                                     <button class="px-2.5 py-1 text-xs font-bold rounded-lg ${isCancelable ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed'} transition-all" ${!isCancelable ? 'disabled' : ''} onclick="cancelarPedido(${order.id_pedido})">
@@ -1308,7 +1312,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span class="block text-xs text-slate-400 font-normal">${order.producto_titulo || 'Producto'}</span>
                             </td>
                             <td class="px-6 py-4 text-xs text-slate-500">${fecha}</td>
-                            <td class="px-6 py-4 font-extrabold text-emerald-600">$${parseFloat(order.total).toFixed(2)}</td>
+                            <td class="px-6 py-4 font-black text-[#195618] tabular-nums">$${parseFloat(order.total).toFixed(2)}</td>
                             <td class="px-6 py-4">
                                 <span class="px-3 py-1 text-xs font-bold rounded-full border ${badgeClass}">
                                     ${order.estado}
@@ -1463,7 +1467,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 badgeEl.className = 'px-3 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300';
                 badgeEl.textContent = 'Suspendida';
             } else {
-                badgeEl.className = 'px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+                badgeEl.className = 'px-3 py-1 text-xs font-bold rounded-full bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]';
                 badgeEl.textContent = 'Activa';
             }
         }
@@ -1487,8 +1491,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const secs = lockedInfo ? lockedInfo.segundosRestantes : 0;
                 countdownBox.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
             } else {
-                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-emerald-50 border-emerald-200 text-emerald-800';
-                icon.className = 'fa-solid fa-circle-check text-2xl text-emerald-500';
+                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-[#C5DB9E]/30 border-[#88BD79]/50 text-[#195618]';
+                icon.className = 'fa-solid fa-circle-check text-2xl text-[#195618]';
                 title.textContent = `Sin Bloqueos Activos (${u.nombre})`;
                 desc.textContent = 'Acceso regular y validado al sistema.';
                 countdownBox.classList.add('hidden');
@@ -1553,7 +1557,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (currentLockedUsersList.length > 0) {
                     badgeTotal.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800 border border-red-200';
                 } else {
-                    badgeTotal.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200';
+                    badgeTotal.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-[#C5DB9E]/30 text-[#195618] border border-[#93A981]/50';
                 }
             }
 
@@ -1563,7 +1567,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     tbody.innerHTML = `
                         <tr>
                             <td colspan="6" class="px-5 py-8 text-center text-xs text-slate-400">
-                                <i class="fa-solid fa-circle-check text-emerald-500 text-base mb-1 block"></i>
+                                <i class="fa-solid fa-circle-check text-[#195618] text-base mb-1 block"></i>
                                 No hay cuentas bloqueadas en este momento. Todos los accesos se encuentran regulares.
                             </td>
                         </tr>
@@ -1604,7 +1608,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </span>
                             </td>
                             <td class="px-5 py-3 text-center">
-                                <button type="button" class="btn-desbloquear-row px-3 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center space-x-1 mx-auto" data-id="${b.id_usuario}">
+                                <button type="button" class="btn-desbloquear-row px-3 py-1 bg-[#5E7824] hover:bg-[#4e641e] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center space-x-1 mx-auto" data-id="${b.id_usuario}">
                                     <i class="fa-solid fa-lock-open text-[10px]"></i>
                                     <span>Desbloquear</span>
                                 </button>
@@ -1775,10 +1779,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div>
                             <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
                                 <span>${v.mes} (${v.pedidos} órdenes)</span>
-                                <span class="text-emerald-600">$${v.total.toFixed(2)}</span>
+                                <span class="text-[#195618] font-extrabold">$${v.total.toFixed(2)}</span>
                             </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                <div class="bg-gradient-to-r from-emerald-500 to-cyan-500 h-2 rounded-full" style="width: ${pct}%"></div>
+                            <div class="w-full bg-[#C5DB9E]/20 rounded-full h-2 overflow-hidden border border-[#93A981]/30">
+                                <div class="bg-gradient-to-r from-[#195618] via-[#5C8754] to-[#88BD79] h-2 rounded-full" style="width: ${pct}%"></div>
                             </div>
                         </div>
                     `;
@@ -1792,11 +1796,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     catContainer.innerHTML += `
                         <div>
                             <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                                <span>${c.categoria}</span>
-                                <span class="font-bold">${c.porcentaje}%</span>
+                                <span class="font-bold text-[#195618]">${c.categoria}</span>
+                                <span class="font-bold text-[#5E7824]">${c.porcentaje}%</span>
                             </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                <div class="bg-slate-800 h-2 rounded-full" style="width: ${c.porcentaje}%"></div>
+                            <div class="w-full bg-[#C5DB9E]/20 rounded-full h-2 overflow-hidden border border-[#93A981]/30">
+                                <div class="bg-[#5E7824] h-2 rounded-full" style="width: ${c.porcentaje}%"></div>
                             </div>
                         </div>
                     `;
@@ -1996,16 +2000,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     tr.className = 'border-b border-slate-100 transition-all hover:bg-slate-50/50';
                     tr.innerHTML = `
                         <td class="px-6 py-3.5 font-bold text-slate-800">${p.titulo}</td>
-                        <td class="px-6 py-3.5 font-semibold text-emerald-600">$${parseFloat(p.precio).toFixed(2)}</td>
+                        <td class="px-6 py-3.5 font-semibold text-[#195618]">$${parseFloat(p.precio).toFixed(2)}</td>
                         <td class="px-6 py-3.5">${p.stock}</td>
                         <td class="px-6 py-3.5">
-                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]'}">
                                 ${isSuspended ? 'Suspendido' : 'Aprobado'}
                             </span>
                         </td>
                         <td class="px-6 py-3.5 text-center">
                             <div class="inline-flex space-x-1.5">
-                                <button type="button" class="btn-edit-prod-ctrl px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all flex items-center space-x-1">
+                                <button type="button" class="btn-edit-prod-ctrl px-2.5 py-1 text-xs font-bold rounded-lg bg-[#A8C1A0]/30 text-[#195618] border border-[#93A981]/50 hover:bg-[#A8C1A0]/60 transition-all flex items-center space-x-1">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                     <span>Editar</span>
                                 </button>
@@ -2052,13 +2056,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td class="px-6 py-3.5 text-xs text-slate-600">${u.correo}</td>
                         <td class="px-6 py-3.5"><span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">${u.nombre_rol || 'Cliente'}</span></td>
                         <td class="px-6 py-3.5">
-                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isBlocked ? 'bg-red-100 text-red-800 border border-red-300' : (isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200')}">
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isBlocked ? 'bg-red-100 text-red-800 border border-red-300' : (isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]')}">
                                 ${isBlocked ? 'Bloqueada' : (isSuspended ? 'Suspendido' : 'Activa')}
                             </span>
                         </td>
                         <td class="px-6 py-3.5 text-center">
                             <div class="inline-flex space-x-1.5">
-                                <button type="button" class="btn-edit-user-ctrl px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all flex items-center space-x-1">
+                                <button type="button" class="btn-edit-user-ctrl px-2.5 py-1 text-xs font-bold rounded-lg bg-[#A8C1A0]/30 text-[#195618] border border-[#93A981]/50 hover:bg-[#A8C1A0]/60 transition-all flex items-center space-x-1">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                     <span>Editar</span>
                                 </button>

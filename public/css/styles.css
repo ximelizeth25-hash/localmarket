@@ -1,6 +1,42 @@
-/* Estilos Complementarios para LocalMarket SaaS Dashboard */
+/* ==========================================================================
+   LocalMarket - Sistema de Estilos y Paleta Natural: Bosque, Salvia y Matcha
+   ========================================================================== */
 
-/* Scrollbar Personalizado */
+:root {
+    /* 1. Verde Bosque Profundo - Botones primarios, CTA, éxito/activo, encabezados contraste */
+    --color-forest: #195618;
+    --color-forest-hover: #134412;
+    --color-forest-active: #0f350e;
+
+    /* 2. Verde Oliva / Musgo - Elementos interactivos secundarios, badges o acentos */
+    --color-moss: #5E7824;
+    --color-moss-hover: #4e641e;
+
+    /* 3. Verde Follaje Medio - Bordes destacados, iconos activos, gráficos secundarios */
+    --color-foliage: #5C8754;
+
+    /* 4. Verde Salvia Grisáceo - Bordes sutiles, divisores, hover suaves */
+    --color-sage: #93A981;
+
+    /* 5. Verde Lima Suave - Badges de alerta positiva, etiquetas destacadas, microinteracciones */
+    --color-lime-soft: #9BBB54;
+
+    /* 6. Verde Hoja Fresca - Indicadores de estado activo, iconos informativos, tags */
+    --color-leaf: #88BD79;
+
+    /* 7. Verde Salvia Claro - Tarjetas secundarias, contenedores ligeros, fondos chips */
+    --color-sage-light: #A8C1A0;
+
+    /* 8. Verde Pálido / Matcha - Fondos de superficie, cards, barras laterales, modales */
+    --color-matcha: #C5DB9E;
+    --color-matcha-subtle: #f4f8ed;
+    --color-matcha-light: #eef5e4;
+
+    /* Superficie base con matiz natural sutil (no blanco puro) */
+    --color-bg-base: #f7faf4;
+}
+
+/* Scrollbar Personalizado en Armonía con la Paleta Salvia */
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -9,21 +45,29 @@
     background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: var(--color-sage);
     border-radius: 9999px;
+    opacity: 0.6;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: var(--color-foliage);
 }
 
 aside .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #1e293b;
+    background: rgba(147, 169, 129, 0.3);
 }
 aside .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #334155;
+    background: rgba(147, 169, 129, 0.6);
 }
 
-/* Manejo de Pestañas */
+/* Brillo ambiental suave con tonos Matcha y Salvia Claro */
+.ambient-glow-forest {
+    background: radial-gradient(circle at 50% 10%, rgba(197, 219, 158, 0.25), transparent 50%),
+                radial-gradient(circle at 85% 85%, rgba(168, 193, 160, 0.2), transparent 45%),
+                radial-gradient(circle at 15% 75%, rgba(25, 86, 24, 0.05), transparent 40%);
+}
+
+/* Manejo de Pestañas y Transiciones */
 .tab-content {
     display: none;
 }
@@ -43,14 +87,14 @@ aside .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     }
 }
 
-/* Modales */
+/* Modales y Superficies Flotantes */
 .modal-backdrop {
     display: none;
     position: fixed;
     inset: 0;
     z-index: 50;
-    background-color: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(4px);
+    background-color: rgba(15, 29, 19, 0.65);
+    backdrop-filter: blur(5px);
     align-items: center;
     justify-content: center;
     padding: 1rem;
@@ -62,10 +106,11 @@ aside .custom-scrollbar::-webkit-scrollbar-thumb:hover {
 
 .modal-box {
     background: #ffffff;
-    border-radius: 1rem;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-radius: 1.25rem;
+    border: 1px solid rgba(147, 169, 129, 0.5);
+    box-shadow: 0 25px 35px -5px rgba(25, 86, 24, 0.15), 0 10px 15px -5px rgba(0, 0, 0, 0.05);
     width: 100%;
-    padding: 1.5rem;
+    padding: 1.75rem;
     animation: modalScale 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -77,7 +122,7 @@ aside .custom-scrollbar::-webkit-scrollbar-thumb:hover {
 @keyframes modalScale {
     from {
         opacity: 0;
-        transform: scale(0.95);
+        transform: scale(0.96);
     }
     to {
         opacity: 1;
@@ -101,9 +146,77 @@ aside .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     }
 }
 
-/* Badges Auxiliares */
-.badge-info {
-    background-color: #e0f2fe;
-    color: #0369a1;
+/* Clases Utilitarias Semánticas de la Paleta */
+
+/* 1. Botón Primario / CTA (#195618) */
+.btn-primary-forest {
+    background-color: #195618;
+    color: #ffffff;
+    font-weight: 700;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 4px 12px rgba(25, 86, 24, 0.25);
+}
+.btn-primary-forest:hover {
+    background-color: #134412;
+    box-shadow: 0 6px 16px rgba(25, 86, 24, 0.35);
+}
+.btn-primary-forest:active {
+    transform: scale(0.98);
+}
+
+/* 2. Botón / Elemento Interactivo Secundario (#5E7824) */
+.btn-secondary-moss {
+    background-color: #5E7824;
+    color: #ffffff;
     font-weight: 600;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-secondary-moss:hover {
+    background-color: #4e641e;
+}
+.btn-secondary-moss:active {
+    transform: scale(0.98);
+}
+
+/* 3. Badges Positivos (#9BBB54 con texto oscuro de alto contraste) */
+.badge-positive {
+    background-color: rgba(155, 187, 84, 0.25);
+    color: #195618;
+    border: 1px solid #9BBB54;
+    font-weight: 700;
+}
+
+/* 4. Badges de Estado Activo (#88BD79) */
+.badge-active-leaf {
+    background-color: rgba(136, 189, 121, 0.22);
+    color: #195618;
+    border: 1px solid #88BD79;
+    font-weight: 600;
+}
+
+/* 5. Badges Secundarios de Acento (#5E7824) */
+.badge-accent-moss {
+    background-color: #5E7824;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+/* 6. Chips y Tarjetas Secundarias (#A8C1A0) */
+.chip-sage-light {
+    background-color: rgba(168, 193, 160, 0.25);
+    color: #195618;
+    border: 1px solid rgba(147, 169, 129, 0.5);
+}
+
+/* 7. Superficies Tenues (#C5DB9E) */
+.surface-matcha {
+    background-color: rgba(197, 219, 158, 0.22);
+    border: 1px solid rgba(147, 169, 129, 0.45);
+}
+
+/* Enfoque accesible con tono follaje */
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: none;
+    border-color: #5C8754;
+    box-shadow: 0 0 0 3px rgba(92, 135, 84, 0.25);
 }

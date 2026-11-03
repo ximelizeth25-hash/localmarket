@@ -6,7 +6,7 @@
     <title>Iniciar Sesión - LocalMarket</title>
     <!-- PWA & Mobile Meta Tags -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0284c7">
+    <meta name="theme-color" content="#195618">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -20,16 +20,32 @@
             theme: {
                 extend: {
                     colors: {
-                        brand: {
-                            50: '#f0fdf4',
-                            500: '#22c55e',
-                            600: '#16a34a',
-                            700: '#15803d'
+                        forest: {
+                            DEFAULT: '#195618',
+                            hover: '#134412',
+                            active: '#0f350e'
                         },
-                        navy: {
-                            800: '#1e293b',
-                            900: '#0f172a',
-                            950: '#020617'
+                        moss: {
+                            DEFAULT: '#5E7824',
+                            hover: '#4e641e'
+                        },
+                        foliage: {
+                            DEFAULT: '#5C8754'
+                        },
+                        sage: {
+                            DEFAULT: '#93A981',
+                            light: '#A8C1A0'
+                        },
+                        limeSoft: {
+                            DEFAULT: '#9BBB54'
+                        },
+                        leaf: {
+                            DEFAULT: '#88BD79'
+                        },
+                        matcha: {
+                            DEFAULT: '#C5DB9E',
+                            subtle: '#f4f8ed',
+                            light: '#eef5e4'
                         }
                     }
                 }
@@ -42,13 +58,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
     <style>
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
         .ambient-glow {
-            background: radial-gradient(circle at 50% 10%, rgba(56, 189, 248, 0.12), transparent 45%),
-                        radial-gradient(circle at 80% 80%, rgba(34, 197, 94, 0.08), transparent 40%);
+            background: radial-gradient(circle at 50% 10%, rgba(197, 219, 158, 0.35), transparent 50%),
+                        radial-gradient(circle at 85% 85%, rgba(168, 193, 160, 0.25), transparent 45%),
+                        radial-gradient(circle at 15% 75%, rgba(25, 86, 24, 0.08), transparent 40%);
         }
         @keyframes popIn {
             from {
@@ -65,25 +83,25 @@
         }
     </style>
 </head>
-<body class="min-h-screen bg-slate-50 ambient-glow flex flex-col justify-center items-center p-4 sm:p-6 text-slate-800 antialiased relative selection:bg-sky-500 selection:text-white">
+<body class="min-h-screen bg-[#f7faf4] ambient-glow flex flex-col justify-center items-center p-4 sm:p-6 text-slate-800 antialiased relative selection:bg-[#195618] selection:text-white">
 
     <!-- Tarjeta Principal de Login -->
-    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl shadow-slate-200/70 border border-slate-200/80 p-8 sm:p-10 card-pop relative overflow-hidden z-10">
+    <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl shadow-[#195618]/10 border border-[#93A981]/50 p-8 sm:p-10 card-pop relative overflow-hidden z-10">
         
-        <!-- Acento decorativo superior -->
-        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-sky-500 via-emerald-400 to-cyan-500"></div>
+        <!-- Acento decorativo superior con la paleta natural -->
+        <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#195618] via-[#5C8754] to-[#88BD79]"></div>
 
         <!-- Encabezado / Branding -->
         <div class="text-center space-y-3 mb-8">
-            <div class="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-600 via-cyan-500 to-emerald-400 items-center justify-center text-white shadow-lg shadow-sky-500/25 mb-1 transform hover:scale-105 transition-all">
+            <div class="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#195618] to-[#5C8754] items-center justify-center text-white shadow-lg shadow-[#195618]/25 mb-1 transform hover:scale-105 transition-all">
                 <i class="fa-solid fa-store text-2xl"></i>
             </div>
             <div>
-                <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                    Local<span class="text-sky-600">Market</span>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-[#195618] tracking-tight">
+                    Local<span class="text-[#5E7824]">Market</span>
                 </h1>
-                <p class="text-xs sm:text-sm text-slate-500 font-medium mt-1">
-                    Bienvenido
+                <p class="text-xs sm:text-sm text-slate-600 font-medium mt-1">
+                    Comercio local y gestión sostenible
                 </p>
             </div>
         </div>
@@ -99,7 +117,7 @@
             
             <!-- Campo: Usuario / Correo -->
             <div class="relative flex items-center">
-                <span class="absolute left-3.5 text-slate-400 text-sm">
+                <span class="absolute left-3.5 text-[#5C8754] text-sm">
                     <i class="fa-solid fa-user"></i>
                 </span>
                 <input 
@@ -107,13 +125,14 @@
                     id="username" 
                     name="username" 
                     required 
-                    class="w-full pl-10 pr-4 py-3 text-sm rounded-xl border border-slate-300 bg-slate-50/50 hover:bg-white focus:bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all font-medium"
+                    placeholder="Usuario o correo"
+                    class="w-full pl-10 pr-4 py-3 text-sm rounded-xl border border-[#93A981]/60 bg-[#C5DB9E]/10 hover:bg-white focus:bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C8754] focus:border-[#5C8754] transition-all font-medium placeholder-slate-400"
                 >
             </div>
 
             <!-- Campo: Contraseña con Toggle de Visibilidad -->
             <div class="relative flex items-center">
-                <span class="absolute left-3.5 text-slate-400 text-sm">
+                <span class="absolute left-3.5 text-[#5C8754] text-sm">
                     <i class="fa-solid fa-lock"></i>
                 </span>
                 <input 
@@ -121,23 +140,24 @@
                     id="password" 
                     name="password" 
                     required 
-                    class="w-full pl-10 pr-11 py-3 text-sm rounded-xl border border-slate-300 bg-slate-50/50 hover:bg-white focus:bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 transition-all font-medium"
+                    placeholder="Contraseña"
+                    class="w-full pl-10 pr-11 py-3 text-sm rounded-xl border border-[#93A981]/60 bg-[#C5DB9E]/10 hover:bg-white focus:bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C8754] focus:border-[#5C8754] transition-all font-medium placeholder-slate-400"
                 >
                 <button 
                     type="button" 
                     id="togglePasswordBtn" 
                     title="Mostrar u ocultar contraseña"
-                    class="absolute right-3 text-slate-400 hover:text-slate-700 p-1 rounded-lg focus:outline-none transition-all"
+                    class="absolute right-3 text-[#93A981] hover:text-[#195618] p-1 rounded-lg focus:outline-none transition-all"
                 >
                     <i id="toggleEyeIcon" class="fa-solid fa-eye text-sm"></i>
                 </button>
             </div>
 
-            <!-- Botón de Envío -->
+            <!-- Botón de Envío: Primario / CTA (#195618) -->
             <button 
                 type="submit" 
                 id="submitBtn"
-                class="w-full bg-slate-900 hover:bg-sky-600 active:scale-[0.99] text-white font-bold py-3.5 px-4 rounded-xl text-sm transition-all duration-200 shadow-lg shadow-slate-900/10 hover:shadow-sky-500/25 flex items-center justify-center space-x-2 cursor-pointer mt-2"
+                class="w-full bg-[#195618] hover:bg-[#134412] active:scale-[0.99] text-white font-bold py-3.5 px-4 rounded-xl text-sm transition-all duration-200 shadow-lg shadow-[#195618]/25 flex items-center justify-center space-x-2 cursor-pointer mt-2"
             >
                 <span id="btnText">Iniciar Sesión</span>
                 <i id="btnIcon" class="fa-solid fa-arrow-right text-xs"></i>
@@ -151,7 +171,7 @@
     </div>
 
     <!-- Footer Copyright -->
-    <p class="text-xs text-slate-400 mt-6 text-center font-medium">
+    <p class="text-xs text-slate-500 mt-6 text-center font-medium">
         &copy; 2026 LocalMarket &bull; Sistema de Gestión y Comercio Electrónico
     </p>
 
@@ -179,14 +199,14 @@
 
         // Función Auxiliar para Mostrar Alertas
         function showAlert(msg, type = 'error') {
-            alertBox.classList.remove('hidden', 'bg-rose-50', 'text-rose-700', 'border-rose-200', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200', 'bg-sky-50', 'text-sky-700', 'border-sky-200');
+            alertBox.classList.remove('hidden', 'bg-rose-50', 'text-rose-700', 'border-rose-200', 'bg-[#C5DB9E]/40', 'text-[#195618]', 'border-[#88BD79]', 'bg-[#A8C1A0]/30', 'border-[#93A981]', 'border');
             
             if (type === 'success') {
-                alertBox.classList.add('bg-emerald-50', 'text-emerald-700', 'border', 'border-emerald-200');
-                alertIcon.className = 'fa-solid fa-circle-check text-emerald-600 text-sm flex-shrink-0';
+                alertBox.classList.add('bg-[#C5DB9E]/40', 'text-[#195618]', 'border', 'border-[#88BD79]');
+                alertIcon.className = 'fa-solid fa-circle-check text-[#195618] text-sm flex-shrink-0';
             } else if (type === 'info') {
-                alertBox.classList.add('bg-sky-50', 'text-sky-700', 'border', 'border-sky-200');
-                alertIcon.className = 'fa-solid fa-circle-info text-sky-600 text-sm flex-shrink-0';
+                alertBox.classList.add('bg-[#A8C1A0]/30', 'text-[#195618]', 'border', 'border-[#93A981]');
+                alertIcon.className = 'fa-solid fa-circle-info text-[#5C8754] text-sm flex-shrink-0';
             } else {
                 alertBox.classList.add('bg-rose-50', 'text-rose-700', 'border', 'border-rose-200');
                 alertIcon.className = 'fa-solid fa-triangle-exclamation text-rose-600 text-sm flex-shrink-0';
