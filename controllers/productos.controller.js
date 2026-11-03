@@ -98,7 +98,7 @@ async function getAllProductos(req, res, next) {
             SELECT p.id_producto, p.id_vendedor, p.id_categoria, p.titulo, p.descripcion, 
                    p.precio, COALESCE(p.costo_unitario, 0) as costo_unitario, p.stock, 
                    p.imagen_1, p.imagen_2, p.imagen_3,
-                   COALESCE(c.nombre_categoria, 'General') as categoria_nombre,
+                   COALESCE(c.nombre, 'General') as categoria_nombre,
                    COALESCE(u.nombre, 'Vendedor Local') as vendedor_nombre,
                    COALESCE(p.estado_publicacion, 'activo') as estado_publicacion,
                    (COALESCE(p.estado_publicacion, 'activo') = 'suspendido') as moderado
@@ -122,7 +122,7 @@ async function getBajoStock(req, res, next) {
     try {
         const query = `
             SELECT p.id_producto, p.titulo, p.stock, p.precio, 
-                   COALESCE(c.nombre_categoria, 'General') as categoria_nombre
+                   COALESCE(c.nombre, 'General') as categoria_nombre
             FROM PRODUCTOS p
             LEFT JOIN CATEGORIAS c ON p.id_categoria = c.id_categoria
             WHERE p.stock <= 5
@@ -149,7 +149,7 @@ async function getProductoById(req, res, next) {
     const id = parseInt(req.params.id);
     try {
         const query = `
-            SELECT p.*, COALESCE(c.nombre_categoria, 'General') as categoria_nombre,
+            SELECT p.*, COALESCE(c.nombre, 'General') as categoria_nombre,
                    COALESCE(u.nombre, 'Vendedor Local') as vendedor_nombre
             FROM PRODUCTOS p
             LEFT JOIN CATEGORIAS c ON p.id_categoria = c.id_categoria
