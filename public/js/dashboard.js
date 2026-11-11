@@ -2144,5 +2144,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Inicialización y carga automática de datos
     loadAllData();
-    goHomeForRole();
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedTab = urlParams.get('tab') || window.location.hash.replace('#', '');
+    if (requestedTab && document.getElementById(requestedTab)) {
+        switchTab(requestedTab);
+    } else {
+        goHomeForRole();
+    }
 });
