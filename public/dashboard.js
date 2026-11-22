@@ -2221,7 +2221,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="px-6 py-4 font-mono font-bold text-[#195618] cursor-pointer hover:underline" onclick="verDetallePedido(${order.id_pedido})" title="Clic para ver detalle de productos">#PED-${order.id_pedido}</td>
                             <td class="px-6 py-4 font-semibold text-slate-800">
                                 ${order.comprador_nombre || 'Cliente General'}
-                                <span class="block text-xs text-slate-500 font-medium">${order.producto_titulo || order.productos_resumen || 'Sin productos'}</span>
                             </td>
                             <td class="px-6 py-4 text-xs text-slate-500">${fecha}</td>
                             <td class="px-6 py-4 font-black text-[#195618] tabular-nums">$${parseFloat(order.total).toFixed(2)}</td>
