@@ -278,6 +278,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Función global para alternar visibilidad de contraseña
+    window.togglePasswordVisibility = function(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const isPass = input.type === 'password';
+        input.type = isPass ? 'text' : 'password';
+        const openIcon = btn ? btn.querySelector('.eye-open') : null;
+        const closedIcon = btn ? btn.querySelector('.eye-closed') : null;
+        if (openIcon && closedIcon) {
+            openIcon.classList.toggle('hidden', isPass);
+            closedIcon.classList.toggle('hidden', !isPass);
+        }
+    };
+
     // ==========================================
     // 3. CARGA DE DATOS GENERAL
     // ==========================================
