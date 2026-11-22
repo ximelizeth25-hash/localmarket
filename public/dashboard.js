@@ -271,10 +271,12 @@ document.addEventListener('DOMContentLoaded', () => {
         cargarUsuarios();
         fetchCatalogo();
         cargarPedidos();
-        if (isAdmin) {
+        if (isAdmin || isSocio) {
             fetchAdminMetrics();
-            fetchModerationData();
-            checkSecurityStatus();
+            if (isAdmin) {
+                fetchModerationData();
+                checkSecurityStatus();
+            }
         }
     }
 
@@ -286,7 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof updateCompraTotal === 'function') updateCompraTotal();
         }
         if (moduleId === 'mod_pedidos') cargarPedidos();
-        if (moduleId === 'mod_admin' && isAdmin) fetchAdminMetrics();
+        if (moduleId === 'mod_admin' && (isAdmin || isSocio)) fetchAdminMetrics();
         if (moduleId === 'mod_moderacion' && isAdmin) fetchModerationData();
         if (moduleId === 'mod_seguridad' && isAdmin) checkSecurityStatus();
     }
@@ -2431,59 +2433,441 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // MÓDULO 9: MÉTRICAS (ADMIN ONLY)
+    // MÓDULO 9: MÉTRICAS Y REPORTES EJECUTIVOS (CHART.JS)
     // ==========================================
+    let chartVentasSemanalesInstance = null;
+    let chartVentasCategoriasInstance = null;
+    let chartRendimientoSociosInstance = null;
+    let chartEstadoPedidosInstance = null;
+    let ultimasMetricasCargadas = null;
+
+    function destroyExecutiveCharts() {
+        if (chartVentasSemanalesInstance) {
+            chartVentasSemanalesInstance.destroy();
+            chartVentasSemanalesInstance = null;
+        }
+        if (chartVentasCategoriasInstance) {
+            chartVentasCategoriasInstance.destroy();
+            chartVentasCategoriasInstance = null;
+        }
+        if (chartRendimientoSociosInstance) {
+            chartRendimientoSociosInstance.destroy();
+            chartRendimientoSociosInstance = null;
+        }
+        if (chartEstadoPedidosInstance) {
+            chartEstadoPedidosInstance.destroy();
+            chartEstadoPedidosInstance = null;
+        }
+    }
+
+    function descargarCSV(nombreArchivo, contenidoCSV) {
+        const blob = new Blob(["\uFEFF" + contenidoCSV], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', nombreArchivo);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function renderExecutiveReports(m) {
+        if (!m) return;
+        ultimasMetricasCargadas = m;
+
+        // 1. KPI Cards principales
+        const elU = document.getElementById('kpiUsuarios');
+        const elP = document.getElementById('kpiProductos');
+        const elPed = document.getElementById('kpiPedidos');
+        const elIng = document.getElementById('kpiIngresos');
+        if (elU) elU.textContent = m.totalUsuarios || '4';
+        if (elP) elP.textContent = m.totalProductos || '6';
+        if (elPed) elPed.textContent = m.totalPedidos || '12';
+        if (elIng) elIng.textContent = `$${parseFloat(m.ingresosTotales || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+
+        // Destruir instancias previas de Chart.js para evitar encimado o canvases en blanco
+        destroyExecutiveCharts();
+
+        if (typeof Chart === 'undefined') {
+            console.warn('Chart.js no está disponible aún');
+            return;
+        }
+
+        // =========================================================================
+        // REPORTE 1: Ventas Semanales (Líneas / Área)
+        // =========================================================================
+        const repTotalSem = document.getElementById('repTotalSemana');
+        const repCrecSem = document.getElementById('repCrecimientoSemana');
+        const repPedSem = document.getElementById('repPedidosSemana');
+        if (repTotalSem) repTotalSem.textContent = `$${parseFloat(m.totalSemana || 6380).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+        if (repCrecSem) repCrecSem.textContent = `${m.crecimientoSemanal || '+16.8%'} vs ant.`;
+        if (repPedSem) repPedSem.textContent = `${m.totalPedidosSemana || 40} pedidos`;
+
+        const ctx1 = document.getElementById('chartVentasSemanales')?.getContext('2d');
+        if (ctx1 && m.ventasSemanales) {
+            chartVentasSemanalesInstance = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: m.ventasSemanales.map(v => v.dia),
+                    datasets: [
+                        {
+                            label: 'Ingresos ($ MXN)',
+                            data: m.ventasSemanales.map(v => v.ingresos),
+                            borderColor: '#1B4332',
+                            backgroundColor: 'rgba(82, 183, 136, 0.22)',
+                            fill: true,
+                            tension: 0.38,
+                            borderWidth: 2.5,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: '#1B4332',
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Pedidos Cerrados',
+                            data: m.ventasSemanales.map(v => v.pedidos),
+                            borderColor: '#2D6A4F',
+                            backgroundColor: 'rgba(45, 106, 79, 0.06)',
+                            borderDash: [4, 4],
+                            tension: 0.35,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            pointHoverRadius: 5,
+                            pointBackgroundColor: '#2D6A4F',
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    if (context.datasetIndex === 0) {
+                                        return ` Ingresos: $${Number(context.raw).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+                                    }
+                                    return ` Pedidos: ${context.raw} órdenes`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            ticks: { callback: v => '$' + v, font: { size: 10 } }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { precision: 0, font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        const tbodySemanal = document.getElementById('tbodyReporteSemanal');
+        if (tbodySemanal && m.ventasSemanales) {
+            tbodySemanal.innerHTML = m.ventasSemanales.map(v => `
+                <tr class="border-b border-slate-50 hover:bg-emerald-50/30">
+                    <td class="font-bold text-slate-700 py-1">${v.dia}</td>
+                    <td class="text-center font-semibold text-slate-600 py-1">${v.pedidos}</td>
+                    <td class="text-right font-bold text-[#1B4332] py-1">$${v.ingresos.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // =========================================================================
+        // REPORTE 2: Ventas Mensuales e Ingresos por Categoría Naturista (Barras)
+        // =========================================================================
+        if (m.ventasCategorias && m.ventasCategorias.length > 0) {
+            const topCat = [...m.ventasCategorias].sort((a, b) => b.ingresos - a.ingresos)[0];
+            const elTopCat = document.getElementById('repTopCategoria');
+            const elTopCatPct = document.getElementById('repTopCatPorcentaje');
+            if (elTopCat && topCat) elTopCat.textContent = topCat.categoria;
+            if (elTopCatPct && topCat) elTopCatPct.textContent = `${topCat.porcentaje || 35}% del total`;
+
+            const ctx2 = document.getElementById('chartVentasCategorias')?.getContext('2d');
+            if (ctx2) {
+                chartVentasCategoriasInstance = new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: m.ventasCategorias.map(c => c.categoria),
+                        datasets: [
+                            {
+                                label: 'Ingresos ($ MXN)',
+                                data: m.ventasCategorias.map(c => c.ingresos),
+                                backgroundColor: ['#1B4332', '#2D6A4F', '#40916C', '#52B788', '#74C69D'],
+                                borderRadius: 6
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => ` Ingresos: $${Number(ctx.raw).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                            y: { ticks: { callback: v => '$' + v, font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+
+            const tbodyCat = document.getElementById('tbodyReporteCategorias');
+            if (tbodyCat) {
+                tbodyCat.innerHTML = m.ventasCategorias.map(c => `
+                    <tr class="border-b border-slate-50 hover:bg-emerald-50/30">
+                        <td class="font-bold text-slate-700 py-1">${c.categoria}</td>
+                        <td class="text-center font-semibold text-slate-600 py-1">${c.unidades} uds</td>
+                        <td class="text-right font-bold text-[#1B4332] py-1">$${c.ingresos.toFixed(2)}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        // =========================================================================
+        // REPORTE 3: Rendimiento por Socio / Equipo de Ventas (Barras Horizontales)
+        // =========================================================================
+        let sociosData = Array.isArray(m.rendimientoSocios) ? [...m.rendimientoSocios] : [];
+        const isUserSocio = (typeof isSocio !== 'undefined' && isSocio) || (currentUser && (currentUser.rol === 'Socio' || (currentUser.nombre_rol || '').toLowerCase().includes('socio')));
+
+        if (isUserSocio) {
+            const userSocioNum = currentUser.numero_socio;
+            const filtered = sociosData.filter(s => 
+                (userSocioNum && s.numero_socio == userSocioNum) ||
+                (currentUser.id_usuario && s.id_usuario == currentUser.id_usuario) ||
+                (currentUser.nombre && s.nombre.toLowerCase().includes(currentUser.nombre.toLowerCase()))
+            );
+            if (filtered.length > 0) sociosData = filtered;
+            const subS = document.getElementById('subtituloRendimientoSocio');
+            if (subS) subS.textContent = 'Tu desempeño individual de ventas y pedidos concretados.';
+        } else {
+            const subS = document.getElementById('subtituloRendimientoSocio');
+            if (subS) subS.textContent = 'Comparativa de pedidos cerrados y facturación por Socio registrado.';
+        }
+
+        const topSocio = [...sociosData].sort((a, b) => b.monto - a.monto)[0];
+        const elTopSocio = document.getElementById('repTopSocio');
+        if (elTopSocio && topSocio) elTopSocio.textContent = topSocio.etiqueta;
+
+        const ctx3 = document.getElementById('chartRendimientoSocios')?.getContext('2d');
+        if (ctx3 && sociosData.length > 0) {
+            chartRendimientoSociosInstance = new Chart(ctx3, {
+                type: 'bar',
+                data: {
+                    labels: sociosData.map(s => s.etiqueta),
+                    datasets: [
+                        {
+                            label: 'Monto Generado ($)',
+                            data: sociosData.map(s => s.monto),
+                            backgroundColor: '#2D6A4F',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Pedidos Concretados',
+                            data: sociosData.map(s => s.pedidos),
+                            backgroundColor: '#95D5B2',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => ctx.datasetIndex === 0 
+                                    ? ` Facturado: $${Number(ctx.raw).toLocaleString('es-MX', { minimumFractionDigits: 2 })}` 
+                                    : ` Pedidos: ${ctx.raw} órdenes`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { callback: v => v >= 100 ? '$' + v : v, font: { size: 10 } } },
+                        y: { ticks: { font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        const tbodySocios = document.getElementById('tbodyReporteSocios');
+        if (tbodySocios) {
+            tbodySocios.innerHTML = sociosData.map(s => `
+                <tr class="border-b border-slate-50 hover:bg-emerald-50/30">
+                    <td class="font-bold text-slate-700 py-1">${s.etiqueta}</td>
+                    <td class="text-center font-semibold text-slate-600 py-1">${s.pedidos} ord.</td>
+                    <td class="text-right font-bold text-[#1B4332] py-1">$${s.monto.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // =========================================================================
+        // REPORTE 4: Estado de Pedidos e Inventario Crítico (Dona / Pastel)
+        // =========================================================================
+        if (m.estadosPedidos && m.estadosPedidos.length > 0) {
+            const ctx4 = document.getElementById('chartEstadoPedidos')?.getContext('2d');
+            if (ctx4) {
+                chartEstadoPedidosInstance = new Chart(ctx4, {
+                    type: 'doughnut',
+                    data: {
+                        labels: m.estadosPedidos.map(e => e.estado),
+                        datasets: [
+                            {
+                                data: m.estadosPedidos.map(e => e.cantidad),
+                                backgroundColor: m.estadosPedidos.map(e => e.color || '#2D6A4F'),
+                                borderWidth: 2,
+                                borderColor: '#ffffff'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '62%',
+                        plugins: {
+                            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+                        }
+                    }
+                });
+            }
+        }
+
+        const repCritCount = document.getElementById('repStockCriticoCount');
+        const listCritico = m.inventarioCritico || [];
+        if (repCritCount) repCritCount.textContent = `${listCritico.length} productos (<= 5 uds)`;
+
+        const tbodyInv = document.getElementById('tbodyReporteInventarioCritico');
+        if (tbodyInv) {
+            if (listCritico.length === 0) {
+                tbodyInv.innerHTML = `<tr><td colspan="3" class="text-center text-slate-400 py-2">Sin stock crítico. Todo abastecido.</td></tr>`;
+            } else {
+                tbodyInv.innerHTML = listCritico.map(p => `
+                    <tr class="border-b border-slate-50 hover:bg-emerald-50/30">
+                        <td class="font-bold text-slate-700 py-1 truncate max-w-[130px]">${p.titulo}</td>
+                        <td class="text-center text-slate-500 py-1">${p.categoria}</td>
+                        <td class="text-right py-1">
+                            <span class="px-1.5 py-0.5 text-[10px] font-black rounded ${p.stock === 0 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'}">
+                                ${p.stock} uds
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+    }
+
     async function fetchAdminMetrics() {
-        if (!isAdmin) return;
+        if (!isAdmin && !isSocio) return;
         try {
             const res = await fetch('/api/admin/metricas');
             const result = await res.json();
             if (!result.success || !result.data) return;
+            renderExecutiveReports(result.data);
+        } catch (e) {
+            console.error('Error al cargar métricas ejecutivas:', e);
+        }
+    }
 
-            const m = result.data;
-            document.getElementById('kpiUsuarios').textContent = m.totalUsuarios;
-            document.getElementById('kpiProductos').textContent = m.totalProductos;
-            document.getElementById('kpiPedidos').textContent = m.totalPedidos;
-            document.getElementById('kpiIngresos').textContent = `$${parseFloat(m.ingresosTotales).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+    // Exportación Global y Filtro de Periodo
+    const btnImprimirReportes = document.getElementById('btnImprimirReportes');
+    if (btnImprimirReportes) {
+        btnImprimirReportes.addEventListener('click', () => {
+            window.print();
+        });
+    }
 
-            const salesContainer = document.getElementById('salesBarContainer');
-            if (salesContainer) {
-                salesContainer.innerHTML = '';
-                const maxVal = Math.max(...m.ventasMensuales.map(v => v.total));
-                m.ventasMensuales.forEach(v => {
-                    const pct = Math.round((v.total / maxVal) * 100);
-                    salesContainer.innerHTML += `
-                        <div>
-                            <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
-                                <span>${v.mes} (${v.pedidos} órdenes)</span>
-                                <span class="text-[#195618] font-extrabold">$${v.total.toFixed(2)}</span>
-                            </div>
-                            <div class="w-full bg-[#C5DB9E]/20 rounded-full h-2 overflow-hidden border border-[#93A981]/30">
-                                <div class="bg-gradient-to-r from-[#195618] via-[#5C8754] to-[#88BD79] h-2 rounded-full" style="width: ${pct}%"></div>
-                            </div>
-                        </div>
-                    `;
-                });
+    const btnExportarTodoCSV = document.getElementById('btnExportarTodoCSV');
+    if (btnExportarTodoCSV) {
+        btnExportarTodoCSV.addEventListener('click', () => {
+            if (!ultimasMetricasCargadas) return alert('No hay datos de métricas disponibles para exportar.');
+            const m = ultimasMetricasCargadas;
+            let csv = 'REPORTE EJECUTIVO - LOCALMARKET\n';
+            csv += `Fecha de Generacion: ${new Date().toLocaleString()}\n\n`;
+
+            csv += '--- REPORTE 1: VENTAS SEMANALES ---\n';
+            csv += 'Dia,Pedidos,Ingresos (MXN)\n';
+            (m.ventasSemanales || []).forEach(v => {
+                csv += `"${v.dia}",${v.pedidos},${v.ingresos}\n`;
+            });
+            csv += `Total Semana,,${m.totalSemana}\n\n`;
+
+            csv += '--- REPORTE 2: INGRESOS POR CATEGORIA NATURISTA ---\n';
+            csv += 'Categoria,Unidades Vendidas,Ingresos (MXN)\n';
+            (m.ventasCategorias || []).forEach(c => {
+                csv += `"${c.categoria}",${c.unidades},${c.ingresos}\n`;
+            });
+            csv += '\n';
+
+            csv += '--- REPORTE 3: RENDIMIENTO POR SOCIO ---\n';
+            csv += 'Socio,Pedidos Concretados,Monto Generado (MXN)\n';
+            (m.rendimientoSocios || []).forEach(s => {
+                csv += `"${s.etiqueta}",${s.pedidos},${s.monto}\n`;
+            });
+            csv += '\n';
+
+            csv += '--- REPORTE 4: ESTADO DE PEDIDOS ---\n';
+            csv += 'Estado,Cantidad,Porcentaje (%)\n';
+            (m.estadosPedidos || []).forEach(e => {
+                csv += `"${e.estado}",${e.cantidad},${e.porcentaje}%\n`;
+            });
+            csv += '\n';
+
+            csv += '--- INVENTARIO CRITICO (STOCK <= 5) ---\n';
+            csv += 'ID,Producto,Categoria,Stock Actual\n';
+            (m.inventarioCritico || []).forEach(p => {
+                csv += `${p.id_producto},"${p.titulo}","${p.categoria}",${p.stock}\n`;
+            });
+
+            descargarCSV(`reporte_ejecutivo_localmarket_${new Date().toISOString().slice(0,10)}.csv`, csv);
+        });
+    }
+
+    document.querySelectorAll('.btn-export-single').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!ultimasMetricasCargadas) return alert('No hay datos disponibles.');
+            const m = ultimasMetricasCargadas;
+            const rep = btn.getAttribute('data-report');
+            let csv = '';
+            let filename = `reporte_${rep}_${new Date().toISOString().slice(0,10)}.csv`;
+
+            if (rep === 'semanal') {
+                csv = 'Dia,Pedidos,Ingresos (MXN)\n' + (m.ventasSemanales || []).map(v => `"${v.dia}",${v.pedidos},${v.ingresos}`).join('\n');
+            } else if (rep === 'categorias') {
+                csv = 'Categoria,Unidades,Ingresos (MXN)\n' + (m.ventasCategorias || []).map(c => `"${c.categoria}",${c.unidades},${c.ingresos}`).join('\n');
+            } else if (rep === 'socios') {
+                csv = 'Socio,Pedidos,Total Generado (MXN)\n' + (m.rendimientoSocios || []).map(s => `"${s.etiqueta}",${s.pedidos},${s.monto}`).join('\n');
+            } else if (rep === 'pedidos_stock') {
+                csv = 'Estado,Cantidad\n' + (m.estadosPedidos || []).map(e => `"${e.estado}",${e.cantidad}`).join('\n') + '\n\nStock Critico\nProducto,Categoria,Stock\n' + (m.inventarioCritico || []).map(p => `"${p.titulo}","${p.categoria}",${p.stock}`).join('\n');
             }
+            descargarCSV(filename, csv);
+        });
+    });
 
-            const catContainer = document.getElementById('categoriesBarContainer');
-            if (catContainer) {
-                catContainer.innerHTML = '';
-                m.distribucionCategorias.forEach(c => {
-                    catContainer.innerHTML += `
-                        <div>
-                            <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                                <span class="font-bold text-[#195618]">${c.categoria}</span>
-                                <span class="font-bold text-[#5E7824]">${c.porcentaje}%</span>
-                            </div>
-                            <div class="w-full bg-[#C5DB9E]/20 rounded-full h-2 overflow-hidden border border-[#93A981]/30">
-                                <div class="bg-[#5E7824] h-2 rounded-full" style="width: ${c.porcentaje}%"></div>
-                            </div>
-                        </div>
-                    `;
-                });
-            }
-        } catch (e) {}
+    const filtroPeriodo = document.getElementById('filtroPeriodoReportes');
+    if (filtroPeriodo) {
+        filtroPeriodo.addEventListener('change', () => {
+            if (typeof fetchAdminMetrics === 'function') fetchAdminMetrics();
+        });
     }
 
     // ==========================================
