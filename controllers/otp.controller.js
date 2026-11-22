@@ -18,6 +18,10 @@ let securityLockState = {
 // Mapa de cuentas bloqueadas por id_usuario: id_usuario -> { id_usuario, nombre, correo, rol, fecha_bloqueo, lockUntil }
 let blockedUsersMap = new Map();
 
+// Duración del bloqueo de seguridad: exactamente 1 minuto (60 segundos)
+const LOCK_DURATION_MS = 60 * 1000;
+const LOCK_DURATION_SECONDS = 60;
+
 function limpiarBloqueosExpirados() {
     const ahora = new Date();
     for (const [id, info] of blockedUsersMap.entries()) {
@@ -27,7 +31,13 @@ function limpiarBloqueosExpirados() {
                 .catch(() => {});
         }
     }
+    if (blockedUsersMap.size === 0) {
+        securityLockState.locked = false;
+        securityLockState.lockUntil = null;
+        securityLockState.intentos = 0;
+    }
 }
+setInterval(limpiarBloqueosExpirados, 2000);
 
 async function getOtpHistory(req, res, next) {
     limpiarBloqueosExpirados();
@@ -137,11 +147,40 @@ async function validarOtp(req, res, next) {
 
         if (securityLockState.intentos >= 3) {
             securityLockState.locked = true;
-            securityLockState.lockUntil = new Date(Date.now() + 10 * 60 * 1000);
+            const lockUntil = new Date(Date.now() + LOCK_DURATION_MS); // 1 minuto
+            securityLockState.lockUntil = lockUntil;
+            if (id_usuario) {
+                const uid = parseInt(id_usuario);
+                try {
+                    let nombre = 'Usuario';
+                    let correo = 'usuario@localmarket.com';
+                    let rol = 'Cliente';
+                    const uRes = await db.query('SELECT u.id_usuario, u.nombre, u.correo, COALESCE(r.nombre_rol, \'Cliente\') as rol FROM USUARIOS u LEFT JOIN ROLES r ON u.id_rol = r.id_rol WHERE u.id_usuario = $1', [uid]);
+                    if (uRes.rows.length > 0) {
+                        nombre = uRes.rows[0].nombre;
+                        correo = uRes.rows[0].correo;
+                        rol = uRes.rows[0].rol;
+                    }
+                    blockedUsersMap.set(uid, {
+                        id_usuario: uid,
+                        nombre,
+                        correo,
+                        rol,
+                        fecha_bloqueo: new Date().toISOString(),
+                        lockUntil: lockUntil.toISOString(),
+                        remainingSeconds: 60,
+                        minutosRestantes: 1,
+                        segundosRestantes: 0,
+                        motivo: '3 errores consecutivos de OTP'
+                    });
+                } catch (e) {}
+                await db.query('UPDATE USUARIOS SET estado_cuenta = $1, otp_verificado = false WHERE id_usuario = $2', ['bloqueado', uid]).catch(() => {});
+                db.query('INSERT INTO VERIFICACIONES_OTP (id_usuario, codigo_otp, intentos_fallidos) VALUES ($1, $2, $3)', [uid, 'ERR-OTP', 3]).catch(() => {});
+            }
             return res.status(423).json({
                 success: false,
                 locked: true,
-                message: 'Has superado el límite de 3 intentos fallidos consecutivos. Tu cuenta ha sido bloqueada temporalmente por 10 minutos.',
+                message: 'Has superado el límite de 3 intentos fallidos consecutivos. Tu cuenta ha sido bloqueada temporalmente por 1 minuto.',
                 lockUntil: securityLockState.lockUntil
             });
         }
@@ -174,8 +213,8 @@ async function bloquearUsuario(req, res, next) {
         } catch (e) {}
 
         const fecha_bloqueo = new Date();
-        const lockUntil = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
-        const remainingSeconds = 600;
+        const lockUntil = new Date(Date.now() + LOCK_DURATION_MS); // Exactamente 1 minuto (60 segundos)
+        const remainingSeconds = LOCK_DURATION_SECONDS;
 
         blockedUsersMap.set(id_usuario, {
             id_usuario,
@@ -184,6 +223,9 @@ async function bloquearUsuario(req, res, next) {
             rol,
             fecha_bloqueo: fecha_bloqueo.toISOString(),
             lockUntil: lockUntil.toISOString(),
+            remainingSeconds: 60,
+            minutosRestantes: 1,
+            segundosRestantes: 0,
             motivo: '3 errores consecutivos de OTP'
         });
 
@@ -201,7 +243,7 @@ async function bloquearUsuario(req, res, next) {
 
         return res.status(200).json({
             success: true,
-            message: `Cuenta de ${nombre} (${correo}) bloqueada por 10 minutos por 3 fallos consecutivos de OTP.`,
+            message: `Cuenta de ${nombre} (${correo}) bloqueada por 1 minuto por 3 fallos consecutivos de OTP.`,
             data: {
                 id_usuario,
                 nombre,
@@ -209,7 +251,9 @@ async function bloquearUsuario(req, res, next) {
                 rol,
                 fecha_bloqueo: fecha_bloqueo.toISOString(),
                 lockUntil: lockUntil.toISOString(),
-                remainingSeconds
+                remainingSeconds: 60,
+                minutosRestantes: 1,
+                segundosRestantes: 0
             }
         });
     } catch (err) {

@@ -881,6 +881,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const intentosFallidosOTP = {};
+
     if (formValidarOtp) {
         formValidarOtp.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -904,14 +906,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            const selectOtp = document.getElementById('otp-usuario-select');
+            const targetUserId = (selectOtp && selectOtp.value) ? parseInt(selectOtp.value) : (currentUser ? currentUser.id_usuario : 1);
+            const targetUserName = (selectOtp && selectOtp.selectedOptions && selectOtp.selectedOptions[0]) 
+                ? selectOtp.selectedOptions[0].textContent.split('-')[0].trim() 
+                : (currentUser ? currentUser.nombre : 'Usuario');
+
             // Validar contra la variable en memoria protegida o contra el backend
             let esValido = false;
             if (ultimoCodigoOtpGenerado && inputVal === ultimoCodigoOtpGenerado) {
                 esValido = true;
             }
-
-            const selectOtp = document.getElementById('otp-usuario-select');
-            const targetUserId = (selectOtp && selectOtp.value) ? selectOtp.value : (currentUser ? currentUser.id_usuario : 1);
 
             try {
                 const res = await fetch('/api/otp/validar', {
@@ -928,14 +933,54 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (esValido) {
+                // Validación exitosa: reiniciar contador de fallos a 0
+                intentosFallidosOTP[targetUserId] = 0;
                 mostrarOtpFeedback(true, 'Código OTP verificado correctamente desde WhatsApp');
                 const otpStatusMsg = document.getElementById('otpStatusMessage');
                 if (otpStatusMsg) {
                     otpStatusMsg.textContent = '🔒 Verificación completada con éxito.';
                     otpStatusMsg.className = 'text-xs text-[#195618] font-bold';
                 }
+                if (typeof checkSecurityStatus === 'function') checkSecurityStatus();
+                if (typeof fetchOtpHistory === 'function') fetchOtpHistory();
             } else {
-                mostrarOtpFeedback(false, 'Código OTP inválido o no coincide');
+                // Incremento de intentos fallidos reales
+                intentosFallidosOTP[targetUserId] = (intentosFallidosOTP[targetUserId] || 0) + 1;
+                const intentos = intentosFallidosOTP[targetUserId];
+
+                if (intentos < 3) {
+                    mostrarOtpFeedback(false, `Código OTP inválido (Intento ${intentos} de 3)`);
+                } else {
+                    // Al 3er fallo consecutivo: resetear contador y bloquear cuenta automáticamente por 1 minuto
+                    intentosFallidosOTP[targetUserId] = 0;
+                    mostrarOtpFeedback(false, '🚨 Código OTP inválido (Intento 3 de 3). Has superado el límite de intentos. La cuenta ha sido bloqueada por 1 minuto por seguridad.');
+
+                    try {
+                        await fetch('/api/otp/bloquear', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id_usuario: targetUserId })
+                        });
+                    } catch (blockErr) {
+                        console.error('Error al bloquear cuenta tras 3 fallos OTP:', blockErr);
+                    }
+
+                    if (window.usuariosRegistrados) {
+                        const u = window.usuariosRegistrados.find(x => x.id_usuario == targetUserId);
+                        if (u) u.estado_cuenta = 'bloqueado';
+                    }
+                    if (currentUser && currentUser.id_usuario == targetUserId) {
+                        currentUser.estado_cuenta = 'bloqueado';
+                    }
+
+                    alert(`🚨 Se detectaron 3 fallos consecutivos de OTP en la cuenta de ${targetUserName}.\nLa cuenta ha sido bloqueada temporalmente por 1 minuto y registrada en Seguridad.`);
+
+                    // Refrescar tabla de cuentas bloqueadas y estado de usuarios inmediatamente
+                    if (typeof checkSecurityStatus === 'function') await checkSecurityStatus();
+                    if (typeof window.cargarUsuarios === 'function') await window.cargarUsuarios();
+                    if (typeof fetchOtpHistory === 'function') await fetchOtpHistory();
+                    if (typeof fetchModerationData === 'function') await fetchModerationData();
+                }
             }
         });
     }
@@ -2115,9 +2160,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-red-50 border-red-300 text-red-800';
                 icon.className = 'fa-solid fa-triangle-exclamation text-2xl text-red-600';
                 title.textContent = `🚨 ¡Cuenta de ${u.nombre} Bloqueada por Seguridad!`;
-                desc.textContent = 'Se detectaron 3 intentos fallidos consecutivos de OTP. Acceso congelado temporalmente por 10 minutos.';
+                desc.textContent = 'Se detectaron 3 intentos fallidos consecutivos de OTP. Acceso congelado temporalmente por 1 minuto.';
                 countdownBox.classList.remove('hidden');
-                const mins = lockedInfo ? lockedInfo.minutosRestantes : 10;
+                const mins = lockedInfo ? lockedInfo.minutosRestantes : 1;
                 const secs = lockedInfo ? lockedInfo.segundosRestantes : 0;
                 countdownBox.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
             } else {
@@ -2285,7 +2330,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                     }
 
-                    // Si se completaron los 10 min, refrescar estado
+                    // Si se completó el minuto de bloqueo (00:00), refrescar estado y liberar cuenta automáticamente
                     if (currentLockedUsersList.length > 0 && !anyRemaining) {
                         checkSecurityStatus();
                         if (typeof window.cargarUsuarios === 'function') window.cargarUsuarios();
@@ -2359,7 +2404,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const u = window.usuariosRegistrados.find(x => x.id_usuario == targetId);
                         if (u) u.estado_cuenta = 'bloqueado';
                     }
-                    alert(`🚨 Se forzaron 3 fallos consecutivos de OTP.\nLa cuenta ha sido bloqueada temporalmente por 10 minutos y registrada como 'Bloqueada'.`);
+                    alert(`🚨 Se forzaron 3 fallos consecutivos de OTP.\nLa cuenta ha sido bloqueada temporalmente por 1 minuto y registrada como 'Bloqueada'.`);
                     await checkSecurityStatus();
                     await window.cargarUsuarios();
                     if (typeof fetchModerationData === 'function') await fetchModerationData();
