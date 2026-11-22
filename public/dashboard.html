@@ -825,35 +825,19 @@
                             </div>
                         </div>
 
-                        <!-- 3. ACCIONES DINÁMICAS (Forzar 3 Errores / Desbloquear Cuenta) -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="p-5 rounded-2xl bg-red-50/50 border border-red-200 space-y-3 flex flex-col justify-between">
-                                <div class="space-y-1">
-                                    <h4 class="font-bold text-xs text-red-800 uppercase flex items-center space-x-1.5">
-                                        <i class="fa-solid fa-triangle-exclamation"></i>
-                                        <span>Simulación de 3 Errores OTP</span>
-                                    </h4>
-                                    <p class="text-xs text-slate-600">Fuerza 3 fallos consecutivos en el usuario seleccionado y bloquea su cuenta por 1 minuto en PostgreSQL.</p>
-                                </div>
-                                <button id="btnSimular3Fallos" type="button" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-red-600/20 flex items-center justify-center space-x-2">
-                                    <i class="fa-solid fa-ban"></i>
-                                    <span>Forzar 3 Errores de OTP</span>
-                                </button>
+                        <!-- ACCIÓN DE SEGURIDAD: Desbloqueo de Cuenta -->
+                        <div class="p-5 rounded-2xl bg-[#C5DB9E]/15 border border-[#93A981]/40 space-y-3 flex flex-col justify-between">
+                            <div class="space-y-1">
+                                <h4 class="font-bold text-xs text-[#5E7824] uppercase flex items-center space-x-1.5">
+                                    <i class="fa-solid fa-lock-open text-[#195618]"></i>
+                                    <span>Desbloqueo de Cuenta</span>
+                                </h4>
+                                <p class="text-xs text-slate-600">Levanta de inmediato la restricción temporal del usuario seleccionado y restablece su estado a 'Activa'.</p>
                             </div>
-
-                            <div class="p-5 rounded-2xl bg-[#C5DB9E]/15 border border-[#93A981]/40 space-y-3 flex flex-col justify-between">
-                                <div class="space-y-1">
-                                    <h4 class="font-bold text-xs text-[#5E7824] uppercase flex items-center space-x-1.5">
-                                        <i class="fa-solid fa-lock-open text-[#195618]"></i>
-                                        <span>Desbloqueo de Cuenta</span>
-                                    </h4>
-                                    <p class="text-xs text-slate-600">Levanta de inmediato la restricción temporal del usuario seleccionado y restablece su estado a 'Activa'.</p>
-                                </div>
-                                <button id="btnDesbloquearAdmin" type="button" class="w-full bg-[#5E7824] hover:bg-[#4e641e] text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center space-x-2">
-                                    <i class="fa-solid fa-key"></i>
-                                    <span>Desbloquear Cuenta</span>
-                                </button>
-                            </div>
+                            <button id="btnDesbloquearAdmin" type="button" class="w-full bg-[#5E7824] hover:bg-[#4e641e] text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center space-x-2">
+                                <i class="fa-solid fa-key"></i>
+                                <span>Desbloquear Cuenta</span>
+                            </button>
                         </div>
 
                         <!-- 2. TABLA DE CUENTAS BLOQUEADAS -->
