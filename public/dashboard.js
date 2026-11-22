@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'mod_pedidos': 'Pedidos',
         'mod_notificaciones': 'Notificaciones',
         'mod_seguridad': 'Seguridad',
-        'mod_admin': 'Métricas',
+        'mod_admin': 'Reportes',
         'mod_moderacion': 'Control'
     };
 
@@ -127,15 +127,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Control de visibilidad del botón de Stock Bajo (Oculto para Rol Cliente)
+        // Control de visibilidad del botón de Stock Bajo: ÚNICAMENTE visible dentro del Catálogo y no Cliente
         const topBtnStockBajo = document.getElementById('topBtnStockBajo');
         if (topBtnStockBajo) {
-            if (isCliente) {
+            const activeTab = document.querySelector('.tab-content.active');
+            const isCatActive = activeTab && activeTab.id === 'mod_catalogo';
+            if (isCatActive && !isCliente) {
+                topBtnStockBajo.classList.remove('hidden');
+                topBtnStockBajo.style.display = 'inline-flex';
+            } else {
                 topBtnStockBajo.classList.add('hidden');
                 topBtnStockBajo.style.display = 'none';
-            } else {
-                topBtnStockBajo.classList.remove('hidden');
-                topBtnStockBajo.style.display = 'flex';
             }
         }
     }
@@ -203,6 +205,19 @@ document.addEventListener('DOMContentLoaded', () => {
             activeModuleTitle.textContent = moduleTitles[targetId];
         }
 
+        // Control de visibilidad del botón de Stock Bajo: ÚNICAMENTE visible en el Catálogo
+        const topBtnStockBajo = document.getElementById('topBtnStockBajo');
+        if (topBtnStockBajo) {
+            if (targetId === 'mod_catalogo' && !isCliente) {
+                topBtnStockBajo.classList.remove('hidden');
+                topBtnStockBajo.style.display = 'inline-flex';
+                if (typeof updateStockBadgeCount === 'function') updateStockBadgeCount();
+            } else {
+                topBtnStockBajo.classList.add('hidden');
+                topBtnStockBajo.style.display = 'none';
+            }
+        }
+
         try {
             loadModuleData(targetId);
         } catch (err) {
@@ -252,13 +267,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function updateStockBadgeCount() {
         try {
-            const res = await fetch('/api/productos/stock-bajo');
-            const result = await res.json();
-            const count = (result.success && Array.isArray(result.data)) ? result.data.length : 0;
+            let prods = catalogoProductosCargados;
+            if (!prods || prods.length === 0) {
+                const res = await fetch('/api/productos');
+                const result = await res.json();
+                if (result.success && Array.isArray(result.data)) {
+                    prods = result.data;
+                } else if (Array.isArray(result)) {
+                    prods = result;
+                }
+            }
+            const lowStockProducts = (prods || []).filter(p => {
+                if (p.moderado || p.estado_publicacion === 'suspendido') return false;
+                const s = parseInt(p.stock);
+                return !isNaN(s) && s <= 5;
+            });
+            const count = lowStockProducts.length;
             const countEl = document.getElementById('topStockCount');
             if (countEl) countEl.textContent = count;
             const textEl = document.getElementById('topStockBajoText');
-            if (textEl) textEl.innerHTML = `Stock Bajo (<span id="topStockCount">${count}</span>)`;
+            if (textEl) textEl.innerHTML = `Stock Bajo (<span id="topStockCount" class="font-extrabold text-[#195618]">${count}</span>)`;
+            return count;
         } catch (e) {
             const countEl = document.getElementById('topStockCount');
             if (countEl) countEl.textContent = '0';
@@ -284,6 +313,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (moduleId === 'mod_auth') { fetchOtpHistory(); cargarUsuarios(); }
         if (moduleId === 'mod_catalogo') fetchCatalogo();
         if (moduleId === 'mod_detalle') {
+            if (!currentSelectedProduct && (!carritoCompra || carritoCompra.length === 0)) {
+                if (typeof mostrarEstadoVacioCompra === 'function') mostrarEstadoVacioCompra();
+            }
             if (typeof renderCarrito === 'function') renderCarrito();
             if (typeof updateCompraTotal === 'function') updateCompraTotal();
         }
@@ -1265,6 +1297,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let catalogoProductosCargados = [];
     let currentCategoryFilter = 'Todas';
     let currentSearchTerm = '';
+    let filterOnlyLowStock = false;
 
     // Función auxiliar para normalizar texto (mayúsculas, minúsculas y acentos)
     function normalizarTexto(str) {
@@ -1279,6 +1312,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Actualiza visualmente la clase activa (verde oscuro) en el botón presionado y la quita de los demás
     window.setCategoryFilter = function(catName) {
+        filterOnlyLowStock = false;
+        const topBtnStockBajo = document.getElementById('topBtnStockBajo');
+        if (topBtnStockBajo) {
+            topBtnStockBajo.classList.remove('ring-2', 'ring-[#195618]', 'bg-[#C5DB9E]/50');
+        }
         currentCategoryFilter = catName || 'Todas';
         const normTarget = normalizarTexto(currentCategoryFilter);
         const allBtns = document.querySelectorAll('.cat-filter-btn');
@@ -1307,8 +1345,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const visibleProducts = (catalogoProductosCargados || []).filter(p => {
             if (p.moderado || p.estado_publicacion === 'suspendido') return false;
 
+            // Filtro exclusivo de Stock Bajo (<= 5 unidades)
+            if (filterOnlyLowStock) {
+                const s = parseInt(p.stock);
+                if (isNaN(s) || s > 5) return false;
+            }
+
             // Filtro por categoría (normalizando mayúsculas, minúsculas y acentos)
-            if (normCat && normCat !== 'todas') {
+            if (!filterOnlyLowStock && normCat && normCat !== 'todas') {
                 const pCat = normalizarTexto(p.categoria_nombre);
                 if (pCat !== normCat) return false;
             }
@@ -1455,6 +1499,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 catalogoProductosCargados = [];
             }
             renderizarCatalogo();
+            if (typeof updateStockBadgeCount === 'function') updateStockBadgeCount();
         } catch (err) {
             console.warn('Error al obtener catálogo:', err);
             renderizarCatalogo();
@@ -1466,6 +1511,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = e.target.closest('.cat-filter-btn');
         if (!btn) return;
         const cat = btn.getAttribute('data-cat') || btn.textContent.trim() || 'Todas';
+        filterOnlyLowStock = false;
         setCategoryFilter(cat);
         renderizarCatalogo();
     });
@@ -1478,46 +1524,31 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Modal Stock Bajo
+    // Botón Stock Bajo: Filtrar catálogo <= 5 unidades y actualizar contador
     const topBtnStockBajo = document.getElementById('topBtnStockBajo');
-    const modalStockBajo = document.getElementById('modalStockBajo');
-    const closeModalStockBtn = document.getElementById('closeModalStockBtn');
-    const btnCerrarModalStock = document.getElementById('btnCerrarModalStock');
+    if (topBtnStockBajo) {
+        topBtnStockBajo.addEventListener('click', async (e) => {
+            e.preventDefault();
+            // Asegurar que estamos dentro de Catálogo
+            switchTab('mod_catalogo');
 
-    if (topBtnStockBajo && modalStockBajo) {
-        topBtnStockBajo.addEventListener('click', async () => {
-            const tbody = document.querySelector('#tablaReporteStockBajo tbody');
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">Consultando disponibilidad de stock...</td></tr>';
-            modalStockBajo.classList.add('active');
+            // Activar filtro exclusivo de stock bajo <= 5 unidades
+            filterOnlyLowStock = true;
 
-            try {
-                const res = await fetch('/api/productos/stock-bajo');
-                const result = await res.json();
-                tbody.innerHTML = '';
+            // Actualizar contador con la cantidad real <= 5
+            await updateStockBadgeCount();
 
-                if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-                    document.getElementById('topStockCount').textContent = result.data.length;
-                    result.data.forEach(prod => {
-                        tbody.innerHTML += `<tr>
-                            <td class="px-4 py-3 font-bold text-slate-800">${prod.titulo}</td>
-                            <td class="px-4 py-3">${prod.categoria_nombre || 'General'}</td>
-                            <td class="px-4 py-3 font-bold text-rose-600">${prod.stock} unidades</td>
-                            <td class="px-4 py-3 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">Reorden</span></td>
-                        </tr>`;
-                    });
-                } else {
-                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-emerald-600 font-bold">✅ Inventario en nivel óptimo.</td></tr>';
-                }
-            } catch (err) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-rose-500">Error al consultar stock bajo.</td></tr>';
-            }
-        });
+            // Desmarcar visualmente los botones de categoría para indicar que el filtro activo es Stock Bajo
+            const allBtns = document.querySelectorAll('.cat-filter-btn');
+            allBtns.forEach(b => {
+                b.classList.remove('active', 'bg-[#195618]', 'text-white', 'shadow-sm', 'font-bold');
+                b.classList.add('bg-[#C5DB9E]/30', 'text-[#195618]', 'hover:bg-[#C5DB9E]/70', 'border', 'border-[#93A981]/50', 'font-semibold');
+            });
 
-        const closeModal = () => modalStockBajo.classList.remove('active');
-        if (closeModalStockBtn) closeModalStockBtn.addEventListener('click', closeModal);
-        if (btnCerrarModalStock) btnCerrarModalStock.addEventListener('click', closeModal);
-        window.addEventListener('click', (e) => {
-            if (e.target === modalStockBajo) closeModal();
+            // Resaltar visualmente el botón de Stock Bajo
+            topBtnStockBajo.classList.add('ring-2', 'ring-[#195618]', 'bg-[#C5DB9E]/50');
+
+            renderizarCatalogo();
         });
     }
 
@@ -1538,6 +1569,44 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             sessionStorage.setItem('carritoCompra', JSON.stringify(carritoCompra));
         } catch (e) {}
+    }
+
+    function mostrarEstadoVacioCompra() {
+        const estadoVacio = document.getElementById('compraEstadoVacio');
+        const detalleProducto = document.getElementById('compraDetalleProducto');
+        if (estadoVacio) {
+            estadoVacio.classList.remove('hidden');
+            estadoVacio.style.display = 'block';
+        }
+        if (detalleProducto) {
+            detalleProducto.classList.add('hidden');
+            detalleProducto.style.display = 'none';
+        }
+        currentSelectedProduct = null;
+        try { sessionStorage.removeItem('producto_seleccionado_compra'); } catch (e) {}
+    }
+
+    function mostrarDetalleCompra() {
+        const estadoVacio = document.getElementById('compraEstadoVacio');
+        const detalleProducto = document.getElementById('compraDetalleProducto');
+        if (estadoVacio) {
+            estadoVacio.classList.add('hidden');
+            estadoVacio.style.display = 'none';
+        }
+        if (detalleProducto) {
+            detalleProducto.classList.remove('hidden');
+            detalleProducto.style.display = 'block';
+        }
+    }
+
+    // Inicializar listener en botón Ir al Catálogo del estado vacío
+    const btnIrAlCatalogoGlobal = document.getElementById('btnIrAlCatalogo');
+    if (btnIrAlCatalogoGlobal && !btnIrAlCatalogoGlobal._hasReturnListener) {
+        btnIrAlCatalogoGlobal._hasReturnListener = true;
+        btnIrAlCatalogoGlobal.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchTab('mod_catalogo');
+        });
     }
 
     function renderCarrito() {
@@ -1565,15 +1634,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (totalPreview) totalPreview.value = '$0.00 MXN';
 
             if (!currentSelectedProduct) {
-                if (estadoVacio) estadoVacio.classList.remove('hidden');
-                if (detalleProducto) detalleProducto.classList.add('hidden');
+                mostrarEstadoVacioCompra();
             }
             return;
         }
 
         // Si hay artículos, asegurar que el panel esté visible
-        if (estadoVacio) estadoVacio.classList.add('hidden');
-        if (detalleProducto) detalleProducto.classList.remove('hidden');
+        mostrarDetalleCompra();
 
         container.innerHTML = '';
         let totalGeneral = 0;
@@ -1686,12 +1753,7 @@ document.addEventListener('DOMContentLoaded', () => {
         guardarCarrito();
 
         if (carritoCompra.length === 0) {
-            currentSelectedProduct = null;
-            try { sessionStorage.removeItem('producto_seleccionado_compra'); } catch (e) {}
-            const estadoVacio = document.getElementById('compraEstadoVacio');
-            const detalleProducto = document.getElementById('compraDetalleProducto');
-            if (estadoVacio) estadoVacio.classList.remove('hidden');
-            if (detalleProducto) detalleProducto.classList.add('hidden');
+            mostrarEstadoVacioCompra();
         } else {
             if (currentSelectedProduct && eliminado && ((currentSelectedProduct.id || currentSelectedProduct.id_producto) === (eliminado.id || eliminado.id_producto))) {
                 openProductDetail(carritoCompra[0]);
@@ -1708,10 +1770,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {}
 
         // Ocultar mensaje de carrito vacío y mostrar panel de compra
-        const estadoVacio = document.getElementById('compraEstadoVacio');
-        const detalleProducto = document.getElementById('compraDetalleProducto');
-        if (estadoVacio) estadoVacio.classList.add('hidden');
-        if (detalleProducto) detalleProducto.classList.remove('hidden');
+        mostrarDetalleCompra();
 
         const btnIrAlCatalogo = document.getElementById('btnIrAlCatalogo');
         if (btnIrAlCatalogo && !btnIrAlCatalogo._hasReturnListener) {
@@ -1901,11 +1960,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.open(`https://wa.me/52${telSocio}?text=${waMsg}`, '_blank');
                     }
 
-                    // Limpiar carrito tras compra exitosa
+                    // Limpiar carrito tras compra exitosa y restaurar estado vacío
                     carritoCompra = [];
                     guardarCarrito();
-                    currentSelectedProduct = null;
-                    try { sessionStorage.removeItem('producto_seleccionado_compra'); } catch (e) {}
+                    mostrarEstadoVacioCompra();
                     renderCarrito();
 
                     await fetchCatalogo();

@@ -133,7 +133,7 @@
 
                 <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-[#A8C1A0] hover:bg-[#195618]/30 hover:text-white transition-all" data-target="mod_admin" data-roles="admin,socio">
                     <i class="fa-solid fa-chart-pie w-5 text-center text-[#9BBB54]"></i>
-                    <span>Métricas</span>
+                    <span>Reportes</span>
                 </a>
 
                 <a href="#" class="tab-btn flex items-center space-x-3 px-3.5 py-2.5 rounded-lg text-sm font-medium text-[#A8C1A0] hover:bg-[#195618]/30 hover:text-white transition-all" data-target="mod_moderacion" data-roles="admin">
@@ -173,8 +173,8 @@
                         <span>Instalar App</span>
                     </button>
 
-                    <!-- Botón / Badge de Stock Bajo con tonos matcha y acento oliva -->
-                    <button id="topBtnStockBajo" class="flex items-center space-x-2.5 px-4 py-2 text-sm font-semibold rounded-xl bg-[#C5DB9E]/25 text-[#195618] border border-[#93A981]/50 hover:bg-[#C5DB9E]/45 transition-all shadow-xs">
+                    <!-- Botón / Badge de Stock Bajo con tonos matcha y acento oliva (Visible únicamente en Catálogo) -->
+                    <button id="topBtnStockBajo" class="hidden flex items-center space-x-2.5 px-4 py-2 text-sm font-semibold rounded-xl bg-[#C5DB9E]/25 text-[#195618] border border-[#93A981]/50 hover:bg-[#C5DB9E]/45 transition-all shadow-xs" style="display: none;">
                         <i class="fa-solid fa-triangle-exclamation text-[#5E7824] text-base"></i>
                         <span id="topStockBajoText">Stock Bajo (<span id="topStockCount" class="font-extrabold text-[#195618]">0</span>)</span>
                     </button>
@@ -557,7 +557,7 @@
                     </div>
 
                     <!-- Detalle Dinámico del Producto Seleccionado y Formulario de Compra -->
-                    <div id="compraDetalleProducto" class="hidden bg-white rounded-2xl border border-[#93A981]/40 shadow-sm p-8 max-w-5xl mx-auto">
+                    <div id="compraDetalleProducto" class="hidden bg-white rounded-2xl border border-[#93A981]/40 shadow-sm p-8 max-w-5xl mx-auto" style="display: none;">
                         <div class="mb-6 flex items-center justify-between border-b border-[#93A981]/25 pb-4">
                             <button id="btnVolverAlCatalogo" type="button" class="text-xs font-bold text-[#5E7824] hover:text-[#195618] flex items-center space-x-1.5 transition-colors">
                                 <i class="fa-solid fa-arrow-left"></i>
@@ -881,7 +881,7 @@
                 </div>
 
                 <!-- ==========================================
-                     MÓDULO 9: MÉTRICAS (ADMIN ONLY)
+                     MÓDULO 9: REPORTES (ADMIN ONLY)
                      ========================================== -->
                 <div id="mod_admin" class="tab-content space-y-6">
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
