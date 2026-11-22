@@ -92,23 +92,29 @@
             <div>
                 <label for="rol-login" class="block text-xs font-bold text-slate-700 uppercase mb-1.5 flex items-center space-x-1.5">
                     <i class="fa-solid fa-users-gear text-[#5C8754]"></i>
-                    <span>Tipo de Acceso / Rol</span>
+                    <span>Tipo de Acceso</span>
                 </label>
-                <select 
-                    id="rol-login" 
-                    name="rol-login"
-                    class="w-full px-3.5 py-2.5 text-sm rounded-xl border border-[#93A981]/60 bg-[#C5DB9E]/10 hover:bg-white focus:bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#5C8754] focus:border-[#5C8754] transition-all cursor-pointer"
-                >
-                    <option value="Administrador" selected>👑 Administrador</option>
-                    <option value="Socio">🌱 Socio (Productor / Ventas)</option>
-                    <option value="Cliente">🛒 Cliente (Asignado a un Socio)</option>
-                </select>
+                <div class="relative flex items-center w-full" style="position: relative; display: flex; align-items: center; width: 100%;">
+                    <span id="rolIcon" class="absolute left-3.5 text-[#2D6A4F] text-sm pointer-events-none" style="position: absolute; left: 0.875rem; color: #2D6A4F; pointer-events: none; z-index: 10;">
+                        <i class="fa-solid fa-crown"></i>
+                    </span>
+                    <select 
+                        id="rol-login" 
+                        name="rol-login"
+                        class="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-[#93A981]/60 bg-[#C5DB9E]/10 hover:bg-white focus:bg-white text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-[#5C8754] focus:border-[#5C8754] transition-all cursor-pointer"
+                        style="padding-left: 2.5rem;"
+                    >
+                        <option value="Administrador" selected>Administrador</option>
+                        <option value="Socio">Socio</option>
+                        <option value="Cliente">Cliente</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Campo Dinámico: Identificador (Correo / Usuario o Número de Socio) -->
             <div id="identificadorContainer" class="space-y-1">
                 <label id="identificadorLabel" class="block text-xs font-bold text-slate-700 uppercase mb-1">
-                    Correo o Usuario Administrador
+                    Correo o Usuario
                 </label>
                 <div class="relative flex items-center">
                     <span id="identificadorIcon" class="absolute left-3.5 text-[#5C8754] text-sm">
@@ -183,6 +189,7 @@
     <script>
         const loginForm = document.getElementById('loginForm');
         const rolLogin = document.getElementById('rol-login');
+        const rolIcon = document.getElementById('rolIcon');
         const identificadorInput = document.getElementById('identificador');
         const identificadorLabel = document.getElementById('identificadorLabel');
         const identificadorIcon = document.getElementById('identificadorIcon');
@@ -202,9 +209,10 @@
         function actualizarCamposPorRol() {
             const rol = rolLogin.value;
             alertBox.classList.add('hidden');
+            identificadorLabel.textContent = 'Correo o Usuario';
 
             if (rol === 'Administrador') {
-                identificadorLabel.textContent = 'Correo o Usuario Administrador';
+                if (rolIcon) rolIcon.innerHTML = '<i class="fa-solid fa-crown"></i>';
                 identificadorInput.type = 'text';
                 identificadorInput.placeholder = 'admin@localmarket.com o admin';
                 identificadorInput.value = '';
@@ -216,7 +224,7 @@
 
                 btnText.textContent = 'Iniciar Sesión como Administrador';
             } else if (rol === 'Socio') {
-                identificadorLabel.textContent = 'Número de Socio (Asignado al Registrarse)';
+                if (rolIcon) rolIcon.innerHTML = '<i class="fa-solid fa-store"></i>';
                 identificadorInput.type = 'number';
                 identificadorInput.min = '1';
                 identificadorInput.placeholder = 'Ej: 1, 2, 3...';
@@ -229,7 +237,7 @@
 
                 btnText.textContent = 'Iniciar Sesión como Socio';
             } else if (rol === 'Cliente') {
-                identificadorLabel.textContent = 'Número de Socio (de tu asesor/socio asignado)';
+                if (rolIcon) rolIcon.innerHTML = '<i class="fa-solid fa-user"></i>';
                 identificadorInput.type = 'number';
                 identificadorInput.min = '1';
                 identificadorInput.placeholder = 'Ingresa el N° de Socio (Ej: 1)';
