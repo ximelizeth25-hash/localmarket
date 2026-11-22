@@ -1320,7 +1320,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 
                 if (!isAgotado) {
-                    card.querySelector('.btn-ver-detalle').addEventListener('click', () => openProductDetail(p));
+                    card.querySelector('.btn-ver-detalle').addEventListener('click', () => {
+                        const prodData = {
+                            id: p.id_producto || p.id,
+                            id_producto: p.id_producto || p.id,
+                            nombre: p.titulo || p.nombre,
+                            titulo: p.titulo || p.nombre,
+                            descripcion: p.descripcion,
+                            precio: p.precio,
+                            stock: p.stock,
+                            categoria: p.categoria_nombre || p.categoria,
+                            categoria_nombre: p.categoria_nombre || p.categoria,
+                            imagen: p.imagen_1 || p.imagen,
+                            imagen_1: p.imagen_1 || p.imagen,
+                            imagen_3: p.imagen_3 || p.imagen_1 || p.imagen,
+                            socio_nombre: p.socio_nombre || p.vendedor_nombre,
+                            vendedor_nombre: p.socio_nombre || p.vendedor_nombre
+                        };
+                        try {
+                            sessionStorage.setItem('producto_seleccionado_compra', JSON.stringify(prodData));
+                        } catch (e) {}
+                        currentSelectedProduct = prodData;
+                        openProductDetail(prodData);
+                    });
                 }
                 if (isCliente) {
                     card.querySelector('.btn-editar-prod')?.classList.add('hidden');
@@ -1429,38 +1451,76 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function openProductDetail(product) {
         currentSelectedProduct = product;
+        try {
+            sessionStorage.setItem('producto_seleccionado_compra', JSON.stringify(product));
+        } catch (e) {}
+
+        // Ocultar mensaje de carrito vacío y mostrar panel de compra
+        const estadoVacio = document.getElementById('compraEstadoVacio');
+        const detalleProducto = document.getElementById('compraDetalleProducto');
+        if (estadoVacio) estadoVacio.classList.add('hidden');
+        if (detalleProducto) detalleProducto.classList.remove('hidden');
+
+        const btnIrAlCatalogo = document.getElementById('btnIrAlCatalogo');
+        if (btnIrAlCatalogo && !btnIrAlCatalogo._hasReturnListener) {
+            btnIrAlCatalogo._hasReturnListener = true;
+            btnIrAlCatalogo.addEventListener('click', () => switchTab('mod_catalogo'));
+        }
+        const btnVolverAlCatalogo = document.getElementById('btnVolverAlCatalogo');
+        if (btnVolverAlCatalogo && !btnVolverAlCatalogo._hasReturnListener) {
+            btnVolverAlCatalogo._hasReturnListener = true;
+            btnVolverAlCatalogo.addEventListener('click', () => switchTab('mod_catalogo'));
+        }
+
         const stock = parseInt(product.stock) || 0;
         const isAgotado = stock <= 0;
 
-        document.getElementById('detailTitulo').textContent = product.titulo;
-        document.getElementById('detailCategoria').textContent = product.categoria_nombre || 'General';
-        document.getElementById('detailPrecio').textContent = `$${parseFloat(product.precio).toFixed(2)} MXN`;
-        document.getElementById('detailDescripcion').textContent = product.descripcion || 'Sin descripción';
-        document.getElementById('detailVendedor').textContent = product.socio_nombre || product.vendedor_nombre || 'Socio LocalMarket';
+        const tituloEl = document.getElementById('detailTitulo');
+        if (tituloEl) tituloEl.textContent = product.titulo || product.nombre || 'Producto';
+
+        const catEl = document.getElementById('detailCategoria');
+        if (catEl) catEl.textContent = product.categoria_nombre || product.categoria || 'General';
+
+        const precioEl = document.getElementById('detailPrecio');
+        if (precioEl) precioEl.textContent = `$${parseFloat(product.precio || 0).toFixed(2)} MXN`;
+
+        const descEl = document.getElementById('detailDescripcion');
+        if (descEl) descEl.textContent = product.descripcion || 'Sin descripción';
+
+        const vendEl = document.getElementById('detailVendedor');
+        if (vendEl) vendEl.textContent = product.socio_nombre || product.vendedor_nombre || 'Socio LocalMarket';
 
         const stockBadge = document.getElementById('detailStockBadge');
         const cantInput = document.getElementById('compra_cantidad');
         const btnConfirmarCompra = document.getElementById('btnConfirmarCompra');
 
         if (isAgotado) {
-            stockBadge.textContent = 'Agotado (0 unidades en stock)';
-            stockBadge.className = 'font-bold text-red-600';
-            cantInput.value = 0;
-            cantInput.min = 0;
-            cantInput.max = 0;
-            cantInput.disabled = true;
+            if (stockBadge) {
+                stockBadge.textContent = 'Agotado (0 unidades en stock)';
+                stockBadge.className = 'font-bold text-red-600';
+            }
+            if (cantInput) {
+                cantInput.value = 0;
+                cantInput.min = 0;
+                cantInput.max = 0;
+                cantInput.disabled = true;
+            }
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.disabled = true;
                 btnConfirmarCompra.className = 'w-full bg-slate-200 text-slate-400 font-bold py-3 rounded-xl text-base cursor-not-allowed flex items-center justify-center space-x-2';
                 btnConfirmarCompra.innerHTML = '<i class="fa-solid fa-ban"></i><span>Producto Agotado (No disponible)</span>';
             }
         } else {
-            stockBadge.textContent = `${stock} unidades en stock`;
-            stockBadge.className = 'font-extrabold text-[#195618]';
-            cantInput.value = 1;
-            cantInput.min = 1;
-            cantInput.max = stock;
-            cantInput.disabled = false;
+            if (stockBadge) {
+                stockBadge.textContent = `${stock} unidades en stock`;
+                stockBadge.className = 'font-extrabold text-[#195618]';
+            }
+            if (cantInput) {
+                cantInput.value = 1;
+                cantInput.min = 1;
+                cantInput.max = stock;
+                cantInput.disabled = false;
+            }
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.disabled = false;
                 btnConfirmarCompra.className = 'w-full bg-[#195618] hover:bg-[#134412] text-white font-bold py-3.5 rounded-xl text-base transition-all shadow-lg shadow-[#195618]/25 flex items-center justify-center space-x-2';
@@ -1468,19 +1528,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const img1 = product.imagen_1 || 'https://placehold.co/600x600?text=IMG1';
-        const img3 = product.imagen_3 || img1;
+        const img1 = product.imagen_1 || product.imagen || 'https://placehold.co/600x600?text=IMG1';
+        const img3 = product.imagen_3 || product.imagen || img1;
 
         const mainImg = document.getElementById('detailMainImg');
         const t1 = document.getElementById('detailThumb1');
         const t3 = document.getElementById('detailThumb3');
 
-        mainImg.src = img1;
-        t1.src = img1;
-        t3.src = img3;
-
-        t1.onclick = () => { mainImg.src = img1; };
-        t3.onclick = () => { mainImg.src = img3; };
+        if (mainImg) mainImg.src = img1;
+        if (t1) {
+            t1.src = img1;
+            t1.onclick = () => { if (mainImg) mainImg.src = img1; };
+        }
+        if (t3) {
+            t3.src = img3;
+            t3.onclick = () => { if (mainImg) mainImg.src = img3; };
+        }
 
         updateCompraTotal();
         switchTab('mod_detalle');
