@@ -1592,9 +1592,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 3. RENDERIZAR EL CARRITO EN LA VISTA DE COMPRA
-    function renderizarCompra() {
+    function renderizarVistaCompra() {
         const cardVacia = document.getElementById('compra-vacia-card') || document.getElementById('compraEstadoVacio');
         const cardDetalle = document.getElementById('compra-detalle-card') || document.getElementById('compraDetalleProducto');
+        const seccionCarrito = document.getElementById('seccionCarritoCompra');
         const container = document.getElementById('carritoItemsContainer');
         const countBadge = document.getElementById('carritoItemsCountBadge');
         const subtotalText = document.getElementById('carritoSubtotalText');
@@ -1602,21 +1603,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalPreview = document.getElementById('compra_total_preview');
         const cantInput = document.getElementById('compra_cantidad');
 
-        // 1. Si carritoCompra.length === 0:
-        // Oculta el contenedor del carrito/formulario activo y muestra únicamente la tarjeta blanca vacía con el ícono del carrito verde
-        if (!carritoCompra || carritoCompra.length === 0) {
+        const hayProductos = Array.isArray(carritoCompra) && carritoCompra.length > 0;
+        const productoActivo = productoSeleccionadoCompra || currentSelectedProduct || (hayProductos ? carritoCompra[0] : null);
+
+        // 1. ESTADO 1 — CARRITO VACÍO (si no hay productos o no hay producto activo):
+        // Oculta por completo el contenedor de detalle/formulario y muestra únicamente la tarjeta blanca vacía con el ícono del carrito verde
+        if (!hayProductos || !productoActivo) {
             if (cardDetalle) {
                 cardDetalle.classList.add('hidden');
-                cardDetalle.style.display = 'none';
+                cardDetalle.style.setProperty('display', 'none', 'important');
+            }
+            if (seccionCarrito) {
+                seccionCarrito.classList.add('hidden');
+                seccionCarrito.style.setProperty('display', 'none', 'important');
             }
             if (cardVacia) {
                 cardVacia.classList.remove('hidden');
-                cardVacia.style.display = 'block';
-            }
-            const seccionCarrito = document.getElementById('seccionCarritoCompra');
-            if (seccionCarrito) {
-                seccionCarrito.classList.add('hidden');
-                seccionCarrito.style.display = 'none';
+                cardVacia.style.setProperty('display', 'block', 'important');
             }
             const btnIrAlCat = document.getElementById('btnIrAlCatalogo');
             if (btnIrAlCat && !btnIrAlCat._hasEmptyReturnListener) {
@@ -1648,20 +1651,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 2. Si carritoCompra.length > 0:
-        // Oculta la tarjeta blanca vacía, muestra el panel activo de Compra y dibuja la lista de todos los productos agregados al carrito
+        // 2. ESTADO 2 — COMPRA ACTIVA (hay productos en el carrito):
+        // Oculta la tarjeta blanca vacía, muestra el panel activo de Compra y dibuja la lista de productos
         if (cardVacia) {
             cardVacia.classList.add('hidden');
-            cardVacia.style.display = 'none';
+            cardVacia.style.setProperty('display', 'none', 'important');
         }
         if (cardDetalle) {
             cardDetalle.classList.remove('hidden');
-            cardDetalle.style.display = 'block';
+            cardDetalle.style.setProperty('display', 'block', 'important');
         }
-        const seccionCarrito = document.getElementById('seccionCarritoCompra');
         if (seccionCarrito) {
             seccionCarrito.classList.remove('hidden');
-            seccionCarrito.style.display = 'block';
+            seccionCarrito.style.setProperty('display', 'block', 'important');
         }
 
         // Sincronizar producto activo para el detalle del encabezado
@@ -1812,9 +1814,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-    window.renderizarCompra = renderizarCompra;
-    window.renderCarrito = renderizarCompra;
-    window.mostrarEstadoCompra = renderizarCompra;
+    const renderizarCompra = renderizarVistaCompra;
+    window.renderizarVistaCompra = renderizarVistaCompra;
+    window.renderizarCompra = renderizarVistaCompra;
+    window.renderCarrito = renderizarVistaCompra;
+    window.mostrarEstadoCompra = renderizarVistaCompra;
 
     function eliminarItemCarrito(index) {
         carritoCompra.splice(index, 1);
@@ -1823,11 +1827,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (carritoCompra.length === 0) {
             productoSeleccionadoCompra = null;
             currentSelectedProduct = null;
+            window.productoSeleccionadoCompra = null;
+            window.currentSelectedProduct = null;
         } else if (productoSeleccionadoCompra && !carritoCompra.some(i => (i.id || i.id_producto) === (productoSeleccionadoCompra.id || productoSeleccionadoCompra.id_producto))) {
             productoSeleccionadoCompra = carritoCompra[0];
             currentSelectedProduct = carritoCompra[0];
         }
-        renderizarCompra();
+        renderizarVistaCompra();
     }
 
     function openProductDetail(product) {
@@ -2094,6 +2100,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // 1. Vacía por completo el arreglo del carrito (carritoCompra = []), pon productoSeleccionadoCompra = null y limpia todas las claves de carrito/producto en sessionStorage y localStorage.
+                    carritoCompra.length = 0;
                     carritoCompra = [];
                     productoSeleccionadoCompra = null;
                     currentSelectedProduct = null;
@@ -2101,81 +2108,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.currentSelectedProduct = null;
                     guardarCarrito();
                     try {
-                        sessionStorage.removeItem('localmarket_carrito');
-                        sessionStorage.removeItem('carritoCompra');
-                        sessionStorage.removeItem('producto_seleccionado_compra');
-                        sessionStorage.removeItem('productoSeleccionadoCompra');
-                        sessionStorage.removeItem('producto_compra_activa');
-                        localStorage.removeItem('localmarket_carrito');
-                        localStorage.removeItem('carritoCompra');
-                        localStorage.removeItem('producto_seleccionado_compra');
-                        localStorage.removeItem('productoSeleccionadoCompra');
-                        localStorage.removeItem('producto_compra_activa');
+                        const purchaseKeys = [
+                            'localmarket_carrito',
+                            'carritoCompra',
+                            'producto_seleccionado_compra',
+                            'productoSeleccionadoCompra',
+                            'producto_compra_activa'
+                        ];
+                        purchaseKeys.forEach(k => {
+                            sessionStorage.removeItem(k);
+                            localStorage.removeItem(k);
+                        });
                     } catch (e) {}
 
-                    // 2. Oculta por completo (style.display = 'none' / clase hidden) todo el bloque activo de compra (la imagen del producto, el formulario de cantidad/dirección y la sección inferior de "Carrito de Compras" con el subtotal).
-                    const cardDetalle = document.getElementById('compra-detalle-card') || document.getElementById('compraDetalleProducto');
-                    if (cardDetalle) {
-                        cardDetalle.classList.add('hidden');
-                        cardDetalle.style.display = 'none';
-                    }
-                    const seccionCarrito = document.getElementById('seccionCarritoCompra');
-                    if (seccionCarrito) {
-                        seccionCarrito.classList.add('hidden');
-                        seccionCarrito.style.display = 'none';
-                    }
-
-                    // Limpiar formulario y datos del producto
+                    // Limpiar formulario de compra
                     const formCompraDirecta = document.getElementById('formCompraDirecta');
                     if (formCompraDirecta) formCompraDirecta.reset();
-                    const cantInput = document.getElementById('compra_cantidad');
-                    if (cantInput) {
-                        cantInput.value = '';
-                        cantInput.placeholder = '0';
-                    }
-                    const totalPreview = document.getElementById('compra_total_preview');
-                    if (totalPreview) totalPreview.value = '$0.00 MXN';
 
-                    const detailMainImg = document.getElementById('detailMainImg');
-                    if (detailMainImg) detailMainImg.src = '';
-                    const detailThumb1 = document.getElementById('detailThumb1');
-                    if (detailThumb1) detailThumb1.src = '';
-                    const detailThumb3 = document.getElementById('detailThumb3');
-                    if (detailThumb3) detailThumb3.src = '';
-                    const detailTitulo = document.getElementById('detailTitulo');
-                    if (detailTitulo) detailTitulo.textContent = '';
-                    const detailPrecio = document.getElementById('detailPrecio');
-                    if (detailPrecio) detailPrecio.textContent = '';
-                    const detailDescripcion = document.getElementById('detailDescripcion');
-                    if (detailDescripcion) detailDescripcion.textContent = '';
-                    const detailCategoria = document.getElementById('detailCategoria');
-                    if (detailCategoria) detailCategoria.textContent = '';
-
-                    const container = document.getElementById('carritoItemsContainer');
-                    if (container) container.innerHTML = '';
-                    const countBadge = document.getElementById('carritoItemsCountBadge');
-                    if (countBadge) countBadge.textContent = '0 productos';
-                    const subtotalText = document.getElementById('carritoSubtotalText');
-                    if (subtotalText) subtotalText.textContent = '$0.00 MXN';
-                    const totalText = document.getElementById('carritoTotalText');
-                    if (totalText) totalText.textContent = '$0.00 MXN';
-
-                    // 3. Muestra (style.display = 'flex' o 'block') únicamente la tarjeta limpia del estado vacío inicial con el ícono del carrito verde, el título "No has seleccionado ningún producto para comprar", el texto "Por favor, selecciona un artículo desde el Catálogo." y el botón verde "Ir al Catálogo" (que al presionarlo abre la vista de Catálogo).
-                    const cardVacia = document.getElementById('compra-vacia-card') || document.getElementById('compraEstadoVacio');
-                    if (cardVacia) {
-                        cardVacia.classList.remove('hidden');
-                        cardVacia.style.display = 'block';
-                    }
-
-                    const btnIrAlCat = document.getElementById('btnIrAlCatalogo');
-                    if (btnIrAlCat) {
-                        btnIrAlCat.onclick = (e) => {
-                            e.preventDefault();
-                            switchTab('mod_catalogo');
-                        };
-                    }
-
-                    renderizarCompra();
+                    // 2. Llama de inmediato a renderizarVistaCompra() para ocultar por completo el formulario y mostrar la tarjeta del carrito vacío
+                    renderizarVistaCompra();
 
                     await fetchCatalogo();
                     await fetchPedidos();
