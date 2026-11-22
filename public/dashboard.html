@@ -448,6 +448,10 @@
                                         <option value="Cápsulas">Cápsulas</option>
                                         <option value="Aceites">Aceites</option>
                                         <option value="Cuidado Personal">Cuidado Personal</option>
+                                        <option value="Frutas y Verduras">Frutas y Verduras</option>
+                                        <option value="Lácteos y Quesos">Lácteos y Quesos</option>
+                                        <option value="Panadería">Panadería</option>
+                                        <option value="Abarrotes y Gourmet">Abarrotes y Gourmet</option>
                                     </select>
                                 </div>
 
@@ -518,13 +522,17 @@
                         </div>
 
                         <!-- Filtros por Categoría con la Paleta Natural -->
-                        <div class="flex items-center space-x-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 custom-scrollbar">
-                            <button class="cat-filter-btn active px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#195618] text-white shadow-sm transition-all whitespace-nowrap" data-cat="Todas">Todas</button>
-                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap" data-cat="Suplementos">Suplementos</button>
-                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap" data-cat="Cafés">Cafés</button>
-                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap" data-cat="Cápsulas">Cápsulas</button>
-                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap" data-cat="Aceites">Aceites</button>
-                            <button class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap" data-cat="Cuidado Personal">Cuidado Personal</button>
+                        <div id="catFilterContainer" class="flex items-center space-x-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 custom-scrollbar">
+                            <button type="button" class="cat-filter-btn active px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#195618] text-white shadow-sm transition-all whitespace-nowrap cursor-pointer" data-cat="Todas">Todas</button>
+                            <button type="button" class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap cursor-pointer" data-cat="Suplementos">Suplementos</button>
+                            <button type="button" class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap cursor-pointer" data-cat="Cafés">Cafés</button>
+                            <button type="button" class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap cursor-pointer" data-cat="Cápsulas">Cápsulas</button>
+                            <button type="button" class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap cursor-pointer" data-cat="Aceites">Aceites</button>
+                            <button type="button" class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap cursor-pointer" data-cat="Cuidado Personal">Cuidado Personal</button>
+                            <button type="button" class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap cursor-pointer" data-cat="Frutas y Verduras">Frutas y Verduras</button>
+                            <button type="button" class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap cursor-pointer" data-cat="Lácteos y Quesos">Lácteos y Quesos</button>
+                            <button type="button" class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap cursor-pointer" data-cat="Panadería">Panadería</button>
+                            <button type="button" class="cat-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#C5DB9E]/30 text-[#195618] hover:bg-[#C5DB9E]/70 border border-[#93A981]/50 transition-all whitespace-nowrap cursor-pointer" data-cat="Abarrotes y Gourmet">Abarrotes y Gourmet</button>
                         </div>
                     </div>
 

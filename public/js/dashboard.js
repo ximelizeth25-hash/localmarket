@@ -1056,10 +1056,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const stock = parseInt(document.getElementById('pub_stock').value);
             const desc = document.getElementById('pub_descripcion').value.trim();
 
+            if (!titulo) return alert('Por favor ingresa el título del producto.');
             if (isNaN(precio) || precio < 0) return alert('El precio debe ser un número positivo.');
             if (isNaN(stock) || stock < 0) return alert('El stock debe ser un número positivo o cero.');
 
             const payload = {
+                id_vendedor: (currentUser && currentUser.id_usuario) ? currentUser.id_usuario : 1,
                 titulo,
                 id_categoria: catValue,
                 categoria_nombre: catNombre,
@@ -1089,9 +1091,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (res.ok && data.success) {
                     alert(editId ? '✅ Producto actualizado exitosamente.' : '🎉 Producto publicado exitosamente.');
-                    if (btnCancelEditProduct) btnCancelEditProduct.click();
+                    
+                    // Limpiar formulario y previsualizaciones
+                    formPublicarProducto.reset();
+                    editProductIdInput.value = '';
+                    previewImg1.src = 'https://placehold.co/150x150?text=Foto+Principal';
+                    previewImg3.src = 'https://placehold.co/150x150?text=Foto+Detalle';
+                    img1Base64 = img3Base64 = null;
+                    formProductTitle.textContent = 'Publicación de Producto';
+                    btnSubmitProduct.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><span>Guardar Producto</span>';
+                    if (btnCancelEditProduct) btnCancelEditProduct.classList.add('hidden');
+
+                    // Reiniciar el filtro a 'Todas' para que el producto recién creado se visualice
+                    setCategoryFilter('Todas');
+                    const catalogoSearchInput = document.getElementById('catalogoSearchInput');
+                    if (catalogoSearchInput) catalogoSearchInput.value = '';
+                    currentSearchTerm = '';
+
+                    // Re-consultar GET /api/productos y re-renderizar la cuadrícula inmediatamente
                     await fetchCatalogo();
-                    if (isAdmin) await fetchAdminMetrics();
+                    if (isAdmin && typeof fetchAdminMetrics === 'function') await fetchAdminMetrics();
+                    if (typeof updateStockBadgeCount === 'function') updateStockBadgeCount();
+
+                    // Redirigir inmediatamente a la vista de Catálogo
                     switchTab('mod_catalogo');
                 } else {
                     alert('Error: ' + (data.message || 'No se pudo guardar el producto.'));
@@ -1108,7 +1130,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const catSelect = document.getElementById('pub_categoria');
         if (catSelect) {
-            const matchedOpt = [...catSelect.options].find(opt => opt.value === p.categoria_nombre || opt.text === p.categoria_nombre || opt.value == p.id_categoria);
+            const matchedOpt = [...catSelect.options].find(opt => 
+                normalizarTexto(opt.value) === normalizarTexto(p.categoria_nombre) || 
+                normalizarTexto(opt.text) === normalizarTexto(p.categoria_nombre) || 
+                opt.value == p.id_categoria
+            );
             if (matchedOpt) {
                 catSelect.value = matchedOpt.value;
             } else {
@@ -1134,114 +1160,177 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ==========================================
-    // MÓDULO 4: CATÁLOGO
+    // MÓDULO 4: CATÁLOGO Y FILTRADO POR CATEGORÍAS
     // ==========================================
+    let catalogoProductosCargados = [];
     let currentCategoryFilter = 'Todas';
     let currentSearchTerm = '';
+
+    // Función auxiliar para normalizar texto (mayúsculas, minúsculas y acentos)
+    function normalizarTexto(str) {
+        if (!str) return '';
+        return str
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    }
+
+    // Actualiza visualmente la clase activa (verde oscuro) en el botón presionado y la quita de los demás
+    window.setCategoryFilter = function(catName) {
+        currentCategoryFilter = catName || 'Todas';
+        const normTarget = normalizarTexto(currentCategoryFilter);
+        const allBtns = document.querySelectorAll('.cat-filter-btn');
+        allBtns.forEach(b => {
+            const btnCat = normalizarTexto(b.getAttribute('data-cat') || b.textContent);
+            if (btnCat === normTarget) {
+                b.classList.add('active', 'bg-[#195618]', 'text-white', 'shadow-sm', 'font-bold');
+                b.classList.remove('bg-[#C5DB9E]/30', 'text-[#195618]', 'hover:bg-[#C5DB9E]/70', 'border', 'border-[#93A981]/50', 'font-semibold');
+            } else {
+                b.classList.remove('active', 'bg-[#195618]', 'text-white', 'shadow-sm', 'font-bold');
+                b.classList.add('bg-[#C5DB9E]/30', 'text-[#195618]', 'hover:bg-[#C5DB9E]/70', 'border', 'border-[#93A981]/50', 'font-semibold');
+            }
+        });
+    };
+
+    // Renderizado dinámico de tarjetas en el Catálogo
+    function renderizarCatalogo() {
+        const grid = document.getElementById('catalogoGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        const normCat = normalizarTexto(currentCategoryFilter);
+        const normSearch = normalizarTexto(currentSearchTerm);
+
+        // Filtrar productos activos y no suspendidos
+        const visibleProducts = (catalogoProductosCargados || []).filter(p => {
+            if (p.moderado || p.estado_publicacion === 'suspendido') return false;
+
+            // Filtro por categoría (normalizando mayúsculas, minúsculas y acentos)
+            if (normCat && normCat !== 'todas') {
+                const pCat = normalizarTexto(p.categoria_nombre);
+                if (pCat !== normCat) return false;
+            }
+
+            // Filtro por búsqueda de texto
+            if (normSearch) {
+                const titulo = normalizarTexto(p.titulo);
+                const desc = normalizarTexto(p.descripcion);
+                const cat = normalizarTexto(p.categoria_nombre);
+                if (!titulo.includes(normSearch) && !desc.includes(normSearch) && !cat.includes(normSearch)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        if (visibleProducts.length > 0) {
+            visibleProducts.forEach(p => {
+                const stock = parseInt(p.stock) || 0;
+                const isAgotado = stock === 0;
+                const isLowStock = stock > 0 && stock <= 5;
+
+                let stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]">En Existencia (${stock})</span>`;
+                if (isAgotado) {
+                    stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-red-50 text-red-700 border border-red-200">Agotado (0)</span>`;
+                } else if (isLowStock) {
+                    stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-800 border border-amber-300">⚠️ Stock Bajo (${stock})</span>`;
+                }
+
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-2xl border border-[#93A981]/40 shadow-sm hover:shadow-md hover:border-[#5C8754] transition-all overflow-hidden flex flex-col justify-between ${p.moderado ? 'opacity-50 grayscale' : ''}`;
+                card.innerHTML = `
+                    <div>
+                        <div class="relative aspect-video bg-[#C5DB9E]/15 overflow-hidden">
+                            <img src="${p.imagen_1 || 'https://placehold.co/400x250?text=Sin+Imagen'}" alt="${p.titulo}" class="w-full h-full object-cover">
+                            <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-white/95 backdrop-blur-sm text-[#195618] border border-[#93A981]/40 shadow-xs">
+                                ${p.categoria_nombre || 'General'}
+                            </span>
+                        </div>
+
+                        <div class="p-4 space-y-2">
+                            <h4 class="font-extrabold text-[#195618] text-sm line-clamp-1">${p.titulo}</h4>
+                            <p class="text-xs text-slate-500 line-clamp-2">${p.descripcion || 'Sin descripción'}</p>
+                            <div class="flex items-center justify-between pt-2">
+                                <p class="text-lg font-black text-[#195618] tabular-nums">$${parseFloat(p.precio).toFixed(2)}</p>
+                                ${stockBadgeHtml}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones de Acción: Comprar y Editar -->
+                    <div class="p-4 pt-0 space-y-2">
+                        <button class="btn-ver-detalle w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${isAgotado ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-[#195618] hover:bg-[#134412] text-white shadow-md shadow-[#195618]/20 active:scale-[0.99]'}" ${isAgotado ? 'disabled' : ''}>
+                            <i class="fa-solid fa-cart-shopping"></i>
+                            <span>${isAgotado ? 'Agotado' : 'Comprar / Detalle'}</span>
+                        </button>
+                        <button class="btn-editar-prod w-full py-2 rounded-xl text-xs font-bold bg-[#C5DB9E]/30 hover:bg-[#C5DB9E]/60 text-[#195618] border border-[#93A981]/40 transition-all flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            <span>Editar Producto</span>
+                        </button>
+                    </div>
+                `;
+
+                if (!isAgotado) {
+                    card.querySelector('.btn-ver-detalle').addEventListener('click', () => openProductDetail(p));
+                }
+                if (isCliente) {
+                    card.querySelector('.btn-editar-prod')?.classList.add('hidden');
+                } else {
+                    card.querySelector('.btn-editar-prod').addEventListener('click', () => cargarEdicionProducto(p));
+                }
+
+                grid.appendChild(card);
+            });
+        } else {
+            grid.innerHTML = `
+                <div class="col-span-full py-16 text-center space-y-3 bg-white rounded-2xl border border-[#93A981]/30 p-8">
+                    <div class="w-14 h-14 bg-[#C5DB9E]/30 text-[#195618] rounded-full flex items-center justify-center mx-auto text-xl">
+                        <i class="fa-solid fa-box-open"></i>
+                    </div>
+                    <h4 class="font-extrabold text-[#195618] text-base">No se encontraron productos</h4>
+                    <p class="text-xs text-slate-500">No hay artículos disponibles con el filtro seleccionado "${currentCategoryFilter}".</p>
+                </div>
+            `;
+        }
+    }
+
+    // Consulta de productos desde backend y renderizado inmediato
+    async function fetchCatalogo() {
+        try {
+            const res = await fetch('/api/productos');
+            const result = await res.json();
+            if (result.success && Array.isArray(result.data)) {
+                catalogoProductosCargados = result.data;
+            } else if (Array.isArray(result)) {
+                catalogoProductosCargados = result;
+            } else {
+                catalogoProductosCargados = [];
+            }
+            renderizarCatalogo();
+        } catch (err) {
+            console.warn('Error al obtener catálogo:', err);
+            renderizarCatalogo();
+        }
+    }
+
+    // Eventos para botones de categorías en el Catálogo
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.cat-filter-btn');
+        if (!btn) return;
+        const cat = btn.getAttribute('data-cat') || btn.textContent.trim() || 'Todas';
+        setCategoryFilter(cat);
+        renderizarCatalogo();
+    });
 
     const catalogoSearchInput = document.getElementById('catalogoSearchInput');
     if (catalogoSearchInput) {
         catalogoSearchInput.addEventListener('input', (e) => {
-            currentSearchTerm = e.target.value;
-            fetchCatalogo();
+            currentSearchTerm = e.target.value.trim();
+            renderizarCatalogo();
         });
-    }
-
-    const catFilterBtns = document.querySelectorAll('.cat-filter-btn');
-    catFilterBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            catFilterBtns.forEach(b => {
-                b.classList.remove('active', 'bg-[#195618]', 'text-white', 'shadow-sm', 'bg-slate-800');
-                b.classList.add('bg-[#C5DB9E]/30', 'text-[#195618]', 'border', 'border-[#93A981]/50');
-            });
-            btn.classList.add('active', 'bg-[#195618]', 'text-white', 'shadow-sm');
-            btn.classList.remove('bg-[#C5DB9E]/30', 'text-[#195618]', 'bg-slate-100', 'text-slate-600');
-            currentCategoryFilter = btn.getAttribute('data-cat');
-            fetchCatalogo();
-        });
-    });
-
-    async function fetchCatalogo() {
-        try {
-            let url = `/api/productos?search=${encodeURIComponent(currentSearchTerm)}`;
-            if (currentCategoryFilter !== 'Todas') {
-                url += `&categoria=${encodeURIComponent(currentCategoryFilter)}`;
-            }
-
-            const res = await fetch(url);
-            const result = await res.json();
-            const grid = document.getElementById('catalogoGrid');
-            if (!grid) return;
-            grid.innerHTML = '';
-
-            const allProducts = (result.success && Array.isArray(result.data)) ? result.data : [];
-            // Ocultar productos suspendidos del catálogo
-            const visibleProducts = allProducts.filter(p => !p.moderado && p.estado_publicacion !== 'suspendido');
-
-            if (visibleProducts.length > 0) {
-                visibleProducts.forEach(p => {
-                    const stock = parseInt(p.stock) || 0;
-                    const isAgotado = stock === 0;
-                    const isLowStock = stock > 0 && stock <= 5;
-
-                    let stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]">En Existencia (${stock})</span>`;
-                    if (isAgotado) {
-                        stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-red-50 text-red-700 border border-red-200">Agotado (0)</span>`;
-                    } else if (isLowStock) {
-                        stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-800 border border-amber-300">⚠️ Stock Bajo (${stock})</span>`;
-                    }
-
-                    const card = document.createElement('div');
-                    card.className = `bg-white rounded-2xl border border-[#93A981]/40 shadow-sm hover:shadow-md hover:border-[#5C8754] transition-all overflow-hidden flex flex-col justify-between ${p.moderado ? 'opacity-50 grayscale' : ''}`;
-                    card.innerHTML = `
-                        <div>
-                            <div class="relative aspect-video bg-[#C5DB9E]/15 overflow-hidden">
-                                <img src="${p.imagen_1 || 'https://placehold.co/400x250?text=Sin+Imagen'}" alt="${p.titulo}" class="w-full h-full object-cover">
-                                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-white/95 backdrop-blur-sm text-[#195618] border border-[#93A981]/40 shadow-xs">
-                                    ${p.categoria_nombre || 'General'}
-                                </span>
-                            </div>
-
-                            <div class="p-4 space-y-2">
-                                <h4 class="font-extrabold text-[#195618] text-sm line-clamp-1">${p.titulo}</h4>
-                                <p class="text-xs text-slate-500 line-clamp-2">${p.descripcion || 'Sin descripción'}</p>
-                                <div class="flex items-center justify-between pt-2">
-                                    <p class="text-lg font-black text-[#195618] tabular-nums">$${parseFloat(p.precio).toFixed(2)}</p>
-                                    ${stockBadgeHtml}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Botones de Acción: Comprar y Editar -->
-                        <div class="p-4 pt-0 space-y-2">
-                            <button class="btn-ver-detalle w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${isAgotado ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-[#195618] hover:bg-[#134412] text-white shadow-md shadow-[#195618]/20 active:scale-[0.99]'}" ${isAgotado ? 'disabled' : ''}>
-                                <i class="fa-solid fa-cart-shopping"></i>
-                                <span>${isAgotado ? 'Agotado' : 'Comprar / Detalle'}</span>
-                            </button>
-                            <button class="btn-editar-prod w-full py-2 rounded-xl text-xs font-bold bg-[#C5DB9E]/30 hover:bg-[#C5DB9E]/60 text-[#195618] border border-[#93A981]/40 transition-all flex items-center justify-center space-x-1.5">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                                <span>Editar Producto</span>
-                            </button>
-                        </div>
-                    `;
-
-                    if (!isAgotado) {
-                        card.querySelector('.btn-ver-detalle').addEventListener('click', () => openProductDetail(p));
-                    }
-                    if (isCliente) {
-                        card.querySelector('.btn-editar-prod')?.classList.add('hidden');
-                    } else {
-                        card.querySelector('.btn-editar-prod').addEventListener('click', () => cargarEdicionProducto(p));
-                    }
-
-                    grid.appendChild(card);
-                });
-            } else {
-                grid.innerHTML = `<div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200 text-slate-400">
-                    <p class="font-semibold text-sm">No se encontraron productos.</p>
-                </div>`;
-            }
-        } catch (e) {}
     }
 
     // Modal Stock Bajo

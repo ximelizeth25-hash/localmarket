@@ -182,10 +182,38 @@ async function createProducto(req, res, next) {
     }
 
     id_vendedor = parseInt(id_vendedor) || 1;
-    id_categoria = parseInt(id_categoria) || 1;
     precio = parseFloat(precio) || 0;
     costo_unitario = parseFloat(costo_unitario) || (precio * 0.55);
     stock = parseInt(stock) || 0;
+
+    // Resolver la categoría válida en PostgreSQL
+    let catId = parseInt(id_categoria);
+    let catNombreFinal = (categoria_nombre || (typeof id_categoria === 'string' && isNaN(Number(id_categoria)) ? id_categoria : '') || 'General').trim();
+
+    try {
+        if (catNombreFinal && catNombreFinal !== 'General') {
+            const catCheck = await db.query('SELECT id_categoria, nombre FROM CATEGORIAS WHERE LOWER(nombre) = LOWER($1) LIMIT 1', [catNombreFinal]);
+            if (catCheck.rows.length > 0) {
+                catId = catCheck.rows[0].id_categoria;
+                catNombreFinal = catCheck.rows[0].nombre;
+            } else {
+                const catIns = await db.query('INSERT INTO CATEGORIAS (nombre, descripcion) VALUES ($1, $2) RETURNING id_categoria, nombre', [catNombreFinal, 'Categoría ' + catNombreFinal]);
+                catId = catIns.rows[0].id_categoria;
+                catNombreFinal = catIns.rows[0].nombre;
+            }
+        } else if (!isNaN(catId) && catId > 0) {
+            const catById = await db.query('SELECT id_categoria, nombre FROM CATEGORIAS WHERE id_categoria = $1 LIMIT 1', [catId]);
+            if (catById.rows.length > 0) {
+                catNombreFinal = catById.rows[0].nombre;
+            }
+        }
+    } catch (catErr) {
+        console.warn('Error resolviendo categoría en BD:', catErr.message);
+    }
+
+    if (isNaN(catId) || catId <= 0) {
+        catId = 1;
+    }
 
     const defaultImg = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
     imagen_1 = imagen_1 || defaultImg;
@@ -199,18 +227,36 @@ async function createProducto(req, res, next) {
             RETURNING *
         `;
         const result = await db.query(insertQuery, [
-            id_vendedor, id_categoria, titulo, descripcion || '', precio, costo_unitario, stock, imagen_1, imagen_2, imagen_3
+            id_vendedor, catId, titulo, descripcion || '', precio, costo_unitario, stock, imagen_1, imagen_2, imagen_3
         ]);
         const newProd = result.rows[0];
-        newProd.categoria_nombre = categoria_nombre || 'General';
-        newProd.moderado = false;
-        return res.status(201).json({ success: true, message: 'Producto publicado con éxito', data: newProd });
+
+        // Consultar con JOIN para devolver el registro completo con su categoría y socio
+        const fullProdRes = await db.query(`
+            SELECT p.id_producto, p.id_vendedor, p.id_categoria, p.titulo, p.descripcion, 
+                   p.precio, COALESCE(p.costo_unitario, 0) as costo_unitario, p.stock, 
+                   p.imagen_1, p.imagen_2, p.imagen_3,
+                   COALESCE(c.nombre, $2) as categoria_nombre,
+                   COALESCE(u.nombre, 'Socio Local') as vendedor_nombre,
+                   COALESCE(u.nombre, 'Socio Local') as socio_nombre,
+                   u.numero_socio,
+                   COALESCE(p.estado_publicacion, 'activo') as estado_publicacion,
+                   false as moderado
+            FROM PRODUCTOS p
+            LEFT JOIN CATEGORIAS c ON p.id_categoria = c.id_categoria
+            LEFT JOIN USUARIOS u ON p.id_vendedor = u.id_usuario
+            WHERE p.id_producto = $1
+        `, [newProd.id_producto, catNombreFinal]);
+
+        const fullProd = fullProdRes.rows.length > 0 ? fullProdRes.rows[0] : { ...newProd, categoria_nombre: catNombreFinal, moderado: false };
+        fallbackProducts.unshift(fullProd);
+        return res.status(201).json({ success: true, message: 'Producto publicado con éxito', data: fullProd });
     } catch (err) {
         console.warn('DB Fallback en createProducto:', err.message);
         const newProd = {
             id_producto: Date.now(),
             id_vendedor,
-            id_categoria,
+            id_categoria: catId,
             titulo,
             descripcion: descripcion || '',
             precio,
@@ -219,7 +265,7 @@ async function createProducto(req, res, next) {
             imagen_1,
             imagen_2,
             imagen_3,
-            categoria_nombre: categoria_nombre || 'General',
+            categoria_nombre: catNombreFinal,
             vendedor_nombre: 'Administrador / Socio',
             socio_nombre: 'Administrador / Socio',
             moderado: false,
@@ -245,6 +291,21 @@ async function updateProducto(req, res, next) {
     if (isNaN(precio) || precio < 0) return res.status(400).json({ success: false, message: 'El precio debe ser positivo.' });
     if (isNaN(stock) || stock < 0) return res.status(400).json({ success: false, message: 'El stock debe ser un entero positivo.' });
 
+    let catId = parseInt(id_categoria);
+    let catNombreFinal = (categoria_nombre || (typeof id_categoria === 'string' && isNaN(Number(id_categoria)) ? id_categoria : '') || '').trim();
+
+    try {
+        if (catNombreFinal) {
+            const catCheck = await db.query('SELECT id_categoria, nombre FROM CATEGORIAS WHERE LOWER(nombre) = LOWER($1) LIMIT 1', [catNombreFinal]);
+            if (catCheck.rows.length > 0) {
+                catId = catCheck.rows[0].id_categoria;
+            } else {
+                const catIns = await db.query('INSERT INTO CATEGORIAS (nombre, descripcion) VALUES ($1, $2) RETURNING id_categoria', [catNombreFinal, 'Categoría ' + catNombreFinal]);
+                catId = catIns.rows[0].id_categoria;
+            }
+        }
+    } catch (e) {}
+
     try {
         let updateSql = `UPDATE PRODUCTOS SET titulo = $1, precio = $2, stock = $3`;
         let params = [titulo, precio, stock];
@@ -252,7 +313,7 @@ async function updateProducto(req, res, next) {
 
         if (descripcion !== undefined) { updateSql += `, descripcion = $${idx}`; params.push(descripcion); idx++; }
         if (costo_unitario) { updateSql += `, costo_unitario = $${idx}`; params.push(costo_unitario); idx++; }
-        if (id_categoria) { updateSql += `, id_categoria = $${idx}`; params.push(parseInt(id_categoria)); idx++; }
+        if (!isNaN(catId) && catId > 0) { updateSql += `, id_categoria = $${idx}`; params.push(catId); idx++; }
         if (imagen_1) { updateSql += `, imagen_1 = $${idx}, imagen_2 = $${idx}`; params.push(imagen_1); idx++; }
         if (imagen_3) { updateSql += `, imagen_3 = $${idx}`; params.push(imagen_3); idx++; }
 
@@ -262,7 +323,7 @@ async function updateProducto(req, res, next) {
         const result = await db.query(updateSql, params);
         if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Producto no encontrado' });
         const prod = result.rows[0];
-        if (categoria_nombre) prod.categoria_nombre = categoria_nombre;
+        if (catNombreFinal) prod.categoria_nombre = catNombreFinal;
         return res.status(200).json({ success: true, message: 'Producto actualizado con éxito', data: prod });
     } catch (err) {
         console.warn('DB Fallback en updateProducto:', err.message);
@@ -273,12 +334,13 @@ async function updateProducto(req, res, next) {
             prod.precio = precio;
             if (costo_unitario) prod.costo_unitario = costo_unitario;
             prod.stock = stock;
-            if (id_categoria) prod.id_categoria = parseInt(id_categoria);
-            if (categoria_nombre) prod.categoria_nombre = categoria_nombre;
+            if (!isNaN(catId) && catId > 0) prod.id_categoria = catId;
+            if (catNombreFinal) prod.categoria_nombre = catNombreFinal;
             if (imagen_1) { prod.imagen_1 = imagen_1; prod.imagen_2 = imagen_1; }
             if (imagen_3) prod.imagen_3 = imagen_3;
+            return res.status(200).json({ success: true, message: 'Producto actualizado (Fallback)', data: prod });
         }
-        return res.status(200).json({ success: true, message: 'Producto actualizado (Sincronizado)', data: prod });
+        return res.status(404).json({ success: false, message: 'Producto no encontrado' });
     }
 }
 
