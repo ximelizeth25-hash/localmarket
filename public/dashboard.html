@@ -781,9 +781,9 @@
                                     <label for="usuario-bloqueo" class="block text-xs font-bold text-slate-700 uppercase tracking-wide">
                                         Usuario Objetivo de Seguridad:
                                     </label>
-                                    <p class="text-xs text-slate-500">Selecciona el usuario sobre el cual actuarán las simulaciones de bloqueo o desbloqueo.</p>
+                                    <p class="text-xs text-slate-500">Selecciona una cuenta para auditar su estado o levantar bloqueos activos.</p>
                                 </div>
-                                <select id="usuario-bloqueo" class="px-3.5 py-2.5 bg-white border border-[#93A981]/60 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-[#5C8754]/30 focus:border-[#5C8754] focus:outline-none shadow-xs min-w-[280px]">
+                                <select id="usuario-bloqueo" class="w-full sm:w-auto min-w-[280px] md:min-w-[320px] px-3.5 py-2.5 bg-white border border-[#93A981]/60 rounded-xl text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-[#5C8754]/30 focus:border-[#5C8754] focus:outline-none shadow-xs transition-all">
                                     <option value="" disabled selected>Cargando usuarios registrados...</option>
                                 </select>
                             </div>
@@ -812,7 +812,7 @@
                         </div>
 
                         <!-- Banner de Estado de Seguridad General / Usuario -->
-                        <div id="securityBanner" class="p-4 rounded-xl border flex items-center justify-between transition-all bg-[#C5DB9E]/30 border-[#88BD79]/50 text-[#195618]">
+                        <div id="securityBanner" class="p-4 rounded-xl border flex items-center justify-between transition-all bg-[#C5DB9E]/30 border-[#88BD79]/50 text-[#195618] shadow-xs">
                             <div class="flex items-center space-x-3">
                                 <i id="securityIcon" class="fa-solid fa-circle-check text-2xl text-[#195618]"></i>
                                 <div>
@@ -826,7 +826,7 @@
                         </div>
 
                         <!-- ACCIÓN DE SEGURIDAD: Desbloqueo de Cuenta -->
-                        <div class="p-5 rounded-2xl bg-[#C5DB9E]/15 border border-[#93A981]/40 space-y-3 flex flex-col justify-between">
+                        <div class="p-5 rounded-2xl bg-[#C5DB9E]/15 border border-[#93A981]/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-xs">
                             <div class="space-y-1">
                                 <h4 class="font-bold text-xs text-[#5E7824] uppercase flex items-center space-x-1.5">
                                     <i class="fa-solid fa-lock-open text-[#195618]"></i>
@@ -834,7 +834,7 @@
                                 </h4>
                                 <p class="text-xs text-slate-600">Levanta de inmediato la restricción temporal del usuario seleccionado y restablece su estado a 'Activa'.</p>
                             </div>
-                            <button id="btnDesbloquearAdmin" type="button" class="w-full bg-[#5E7824] hover:bg-[#4e641e] text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center space-x-2">
+                            <button id="btnDesbloquearAdmin" type="button" class="w-full sm:w-auto px-5 bg-[#5E7824] hover:bg-[#4e641e] text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm flex items-center justify-center space-x-2 flex-shrink-0">
                                 <i class="fa-solid fa-key"></i>
                                 <span>Desbloquear Cuenta</span>
                             </button>

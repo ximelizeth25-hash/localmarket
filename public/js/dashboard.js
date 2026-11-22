@@ -650,6 +650,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const fetchUsuariosTable = window.cargarUsuarios;
 
+    // Formateador limpio de usuarios para desplegables (Rol - Nombre)
+    function formatearEtiquetaUsuario(u) {
+        const rawRol = (u.nombre_rol || u.rol || 'Cliente').trim();
+        const nombre = (u.nombre || 'Usuario').trim();
+        if (rawRol.toLowerCase().includes('admin')) {
+            return (nombre.toLowerCase() === 'administrador' || nombre.toLowerCase() === 'admin') 
+                ? 'Admin' 
+                : `Admin - ${nombre}`;
+        }
+        const rol = (rawRol.toLowerCase() === 'vendedor' || rawRol.toLowerCase() === 'socio') ? 'Socio' : rawRol;
+        return `${rol} - ${nombre}`;
+    }
+
     // Selector dinámico para destinatarios del código OTP WhatsApp
     window.poblarSelectorOtp = function(users) {
         const selectOtp = document.getElementById('otp-usuario-select');
@@ -666,9 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.dataset.telefono = (u.telefono || '').replace(/\D/g, '');
             opt.dataset.nombre = u.nombre || 'Socio';
 
-            // Formato limpio: únicamente nombre y rol sin teléfono ni correo (Ej: "Gisela - Socio")
-            const rolLabel = u.nombre_rol || u.rol || 'Socio';
-            opt.textContent = `${u.nombre} - ${rolLabel}`;
+            opt.textContent = formatearEtiquetaUsuario(u);
             selectOtp.appendChild(opt);
         });
 
@@ -901,7 +912,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectOtp = document.getElementById('otp-usuario-select');
             const targetUserId = (selectOtp && selectOtp.value) ? parseInt(selectOtp.value) : (currentUser ? currentUser.id_usuario : 1);
             const targetUserName = (selectOtp && selectOtp.selectedOptions && selectOtp.selectedOptions[0]) 
-                ? selectOtp.selectedOptions[0].textContent.split('-')[0].trim() 
+                ? (selectOtp.selectedOptions[0].dataset.nombre || (selectOtp.selectedOptions[0].textContent.includes('-') ? selectOtp.selectedOptions[0].textContent.split('-').slice(1).join('-').trim() : selectOtp.selectedOptions[0].textContent.trim()))
                 : (currentUser ? currentUser.nombre : 'Usuario');
 
             // Validar contra la variable en memoria protegida o contra el backend
@@ -2178,8 +2189,8 @@ document.addEventListener('DOMContentLoaded', () => {
         userList.forEach(u => {
             const opt = document.createElement('option');
             opt.value = u.id_usuario;
-            const rolLabel = u.nombre_rol || u.rol || 'Cliente';
-            opt.textContent = `${u.nombre} - ${rolLabel}`;
+            opt.dataset.nombre = u.nombre || 'Usuario';
+            opt.textContent = formatearEtiquetaUsuario(u);
             select.appendChild(opt);
         });
 
