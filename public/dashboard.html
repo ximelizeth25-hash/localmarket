@@ -616,6 +616,42 @@
                                 </form>
                             </div>
                         </div>
+
+                        <!-- Resumen del Carrito de Compras -->
+                        <div id="seccionCarritoCompra" class="mt-8 pt-6 border-t border-[#93A981]/30 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-8 h-8 rounded-lg bg-[#195618] text-white flex items-center justify-center text-sm shadow-sm">
+                                        <i class="fa-solid fa-basket-shopping"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-extrabold text-[#195618] text-base">Carrito de Compras</h3>
+                                        <p class="text-xs text-slate-500">Artículos seleccionados para tu pedido</p>
+                                    </div>
+                                </div>
+                                <span id="carritoItemsCountBadge" class="px-3 py-1 text-xs font-bold rounded-full bg-[#C5DB9E]/50 text-[#195618] border border-[#93A981]/40">
+                                    0 productos
+                                </span>
+                            </div>
+
+                            <!-- Lista Dinámica de Productos en el Carrito -->
+                            <div id="carritoItemsContainer" class="space-y-3"></div>
+
+                            <!-- Resumen Financiero del Carrito -->
+                            <div class="bg-[#C5DB9E]/20 rounded-xl p-4 border border-[#93A981]/40 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
+                                <div class="text-xs text-slate-600">
+                                    <span class="font-semibold text-slate-700">Subtotal:</span>
+                                    <span id="carritoSubtotalText" class="font-bold text-[#195618] ml-1">$0.00 MXN</span>
+                                    <span class="mx-2 text-slate-300">|</span>
+                                    <span class="font-semibold text-slate-700">Envío:</span>
+                                    <span class="font-bold text-emerald-700 ml-1">Gratis</span>
+                                </div>
+                                <div class="text-base font-black text-[#195618] flex items-center space-x-2">
+                                    <span class="text-xs uppercase font-extrabold text-slate-600">Total a Pagar:</span>
+                                    <span id="carritoTotalText" class="text-xl tabular-nums text-[#195618] font-black">$0.00 MXN</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
