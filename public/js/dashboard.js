@@ -666,17 +666,9 @@ document.addEventListener('DOMContentLoaded', () => {
             opt.dataset.telefono = (u.telefono || '').replace(/\D/g, '');
             opt.dataset.nombre = u.nombre || 'Socio';
 
-            // Formato limpio: únicamente nombre y número de socio sin el teléfono: Ej: "Gisela - Socio #1"
-            let etiqueta = '';
-            if (u.numero_socio) {
-                etiqueta = `${u.nombre} - Socio #${u.numero_socio}`;
-            } else if ((u.nombre_rol || u.rol || '').toLowerCase().includes('admin')) {
-                etiqueta = `${u.nombre} - Administrador`;
-            } else {
-                etiqueta = `${u.nombre} - ${u.nombre_rol || u.rol || 'Socio'}`;
-            }
-
-            opt.textContent = etiqueta;
+            // Formato limpio: únicamente nombre y rol sin teléfono ni correo (Ej: "Gisela - Socio")
+            const rolLabel = u.nombre_rol || u.rol || 'Socio';
+            opt.textContent = `${u.nombre} - ${rolLabel}`;
             selectOtp.appendChild(opt);
         });
 
