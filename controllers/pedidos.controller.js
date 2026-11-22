@@ -42,9 +42,43 @@ async function getAllPedidos(req, res, next) {
             SELECT p.id_pedido, p.id_comprador, p.fecha_pedido, p.total, p.estado, 
                    COALESCE(p.numero_socio_atencion, 1) as numero_socio_atencion,
                    COALESCE(u.nombre, 'Cliente General') as comprador_nombre,
-                   COALESCE(u.telefono, '5500000000') as comprador_telefono
+                   COALESCE(u.telefono, '5500000000') as comprador_telefono,
+                   COALESCE(p.direccion_entrega, dir.calle_numero || ', ' || dir.colonia, 'Av. Central #500, Centro') as direccion_entrega,
+                   COALESCE(
+                       (
+                           SELECT json_agg(json_build_object(
+                               'id_detalle', dv.id_detalle,
+                               'id_producto', dv.id_producto,
+                               'nombre', COALESCE(pr.titulo, 'Producto'),
+                               'titulo', COALESCE(pr.titulo, 'Producto'),
+                               'cantidad', dv.cantidad,
+                               'precio_unitario', dv.precio_unitario,
+                               'subtotal', dv.subtotal
+                           ))
+                           FROM detalle_venta dv
+                           LEFT JOIN productos pr ON dv.id_producto = pr.id_producto
+                           WHERE dv.id_pedido = p.id_pedido
+                       ),
+                       '[]'::json
+                   ) as productos,
+                   COALESCE(
+                       (
+                           SELECT string_agg(dv.cantidad || 'x ' || pr.titulo, ', ')
+                           FROM detalle_venta dv
+                           LEFT JOIN productos pr ON dv.id_producto = pr.id_producto
+                           WHERE dv.id_pedido = p.id_pedido
+                       ),
+                       p.producto_titulo,
+                       'Producto'
+                   ) as producto_titulo
             FROM PEDIDOS_VENTAS p
             LEFT JOIN USUARIOS u ON p.id_comprador = u.id_usuario
+            LEFT JOIN LATERAL (
+                SELECT calle_numero, colonia 
+                FROM direcciones_entrega 
+                WHERE id_usuario = p.id_comprador 
+                LIMIT 1
+            ) dir ON true
         `;
         let params = [];
 
@@ -70,6 +104,68 @@ async function getAllPedidos(req, res, next) {
             ? fallbackOrders.filter(o => o.numero_socio_atencion === numSocioFilter) 
             : fallbackOrders;
         return res.status(200).json({ success: true, message: 'Fallback local', data: filteredFallback });
+    }
+}
+
+async function getPedidoDetalle(req, res, next) {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ success: false, message: 'ID de pedido inválido' });
+
+    try {
+        const sql = `
+            SELECT p.id_pedido, p.id_comprador, p.fecha_pedido, p.total, p.estado, 
+                   COALESCE(p.numero_socio_atencion, 1) as numero_socio_atencion,
+                   COALESCE(u.nombre, 'Cliente General') as comprador_nombre,
+                   COALESCE(u.telefono, '5500000000') as comprador_telefono,
+                   COALESCE(p.direccion_entrega, dir.calle_numero || ', ' || dir.colonia, 'Av. Central #500, Centro') as direccion_entrega,
+                   COALESCE(
+                       (
+                           SELECT json_agg(json_build_object(
+                               'id_detalle', dv.id_detalle,
+                               'id_producto', dv.id_producto,
+                               'nombre', COALESCE(pr.titulo, 'Producto'),
+                               'titulo', COALESCE(pr.titulo, 'Producto'),
+                               'cantidad', dv.cantidad,
+                               'precio_unitario', dv.precio_unitario,
+                               'subtotal', dv.subtotal
+                           ))
+                           FROM detalle_venta dv
+                           LEFT JOIN productos pr ON dv.id_producto = pr.id_producto
+                           WHERE dv.id_pedido = p.id_pedido
+                       ),
+                       '[]'::json
+                   ) as productos,
+                   COALESCE(
+                       (
+                           SELECT string_agg(dv.cantidad || 'x ' || pr.titulo, ', ')
+                           FROM detalle_venta dv
+                           LEFT JOIN productos pr ON dv.id_producto = pr.id_producto
+                           WHERE dv.id_pedido = p.id_pedido
+                       ),
+                       p.producto_titulo,
+                       'Producto'
+                   ) as producto_titulo
+            FROM PEDIDOS_VENTAS p
+            LEFT JOIN USUARIOS u ON p.id_comprador = u.id_usuario
+            LEFT JOIN LATERAL (
+                SELECT calle_numero, colonia 
+                FROM direcciones_entrega 
+                WHERE id_usuario = p.id_comprador 
+                LIMIT 1
+            ) dir ON true
+            WHERE p.id_pedido = $1
+        `;
+        const result = await db.query(sql, [id]);
+        if (result.rows.length === 0) {
+            const fallback = fallbackOrders.find(o => o.id_pedido === id);
+            if (fallback) return res.status(200).json({ success: true, data: fallback });
+            return res.status(404).json({ success: false, message: 'Pedido no encontrado' });
+        }
+        return res.status(200).json({ success: true, data: result.rows[0] });
+    } catch (err) {
+        console.warn('DB Fallback en getPedidoDetalle:', err.message);
+        const fallback = fallbackOrders.find(o => o.id_pedido === id);
+        return res.status(200).json({ success: true, data: fallback || { id_pedido: id, productos: [] } });
     }
 }
 
@@ -132,18 +228,45 @@ async function createPedido(req, res, next) {
         }
 
         const orderRes = await db.query(
-            'INSERT INTO PEDIDOS_VENTAS (id_comprador, fecha_pedido, total, estado, numero_socio_atencion) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [id_comprador, fecha, total, estado, socioAtencion]
+            'INSERT INTO PEDIDOS_VENTAS (id_comprador, fecha_pedido, total, estado, numero_socio_atencion, direccion_entrega, producto_titulo) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [id_comprador, fecha, total, estado, socioAtencion, direccion_entrega || 'Domicilio registrado', producto_titulo || 'Producto']
         );
         const order = orderRes.rows[0];
 
         // También registrar en tabla pedidos de compatibilidad si existe
         try {
             await db.query(
-                'INSERT INTO PEDIDOS (id_comprador, fecha_pedido, total, estado, numero_socio_atencion) VALUES ($1, $2, $3, $4, $5)',
-                [id_comprador, fecha, total, estado, socioAtencion]
+                'INSERT INTO PEDIDOS (id_comprador, fecha_pedido, total, estado, numero_socio_atencion, direccion_entrega, producto_titulo) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+                [id_comprador, fecha, total, estado, socioAtencion, direccion_entrega || 'Domicilio registrado', producto_titulo || 'Producto']
             );
         } catch (_) {}
+
+        // Insertar desglose en detalle_venta
+        let itemsDetalle = req.body.items;
+        if (!Array.isArray(itemsDetalle) || itemsDetalle.length === 0) {
+            const precioUnit = cantidad > 0 ? (total / cantidad) : total;
+            itemsDetalle = [{
+                id_producto,
+                cantidad,
+                precio_unitario: precioUnit,
+                subtotal: total
+            }];
+        }
+
+        for (const item of itemsDetalle) {
+            const itemProdId = parseInt(item.id_producto || item.id) || id_producto;
+            const itemCant = parseInt(item.cantidad) || 1;
+            const itemPrecio = parseFloat(item.precio_unitario || item.precio) || (total / itemCant);
+            const itemSubtotal = parseFloat(item.subtotal) || (itemCant * itemPrecio);
+            try {
+                await db.query(
+                    'INSERT INTO detalle_venta (id_pedido, id_producto, cantidad, precio_unitario, subtotal) VALUES ($1, $2, $3, $4, $5)',
+                    [order.id_pedido, itemProdId, itemCant, itemPrecio, itemSubtotal]
+                );
+            } catch (errDet) {
+                console.warn('Advertencia insertando detalle_venta:', errDet.message);
+            }
+        }
 
         await db.query('UPDATE PRODUCTOS SET stock = GREATEST(0, stock - $1) WHERE id_producto = $2', [cantidad, id_producto]);
 
@@ -231,6 +354,7 @@ async function cancelarPedido(req, res, next) {
 
 module.exports = {
     getAllPedidos,
+    getPedidoDetalle,
     createPedido,
     updateEstadoPedido,
     cancelarPedido,

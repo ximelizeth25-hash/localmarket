@@ -1263,6 +1263,78 @@
         </div>
     </div>
 
+    <!-- MODAL DETALLE DE PEDIDO Y PRODUCTOS INCLUIDOS -->
+    <div id="modalDetallePedido" class="modal-backdrop">
+        <div class="modal-box max-w-2xl p-6">
+            <!-- Header -->
+            <div class="flex items-center justify-between pb-4 border-b border-[#93A981]/30">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-[#195618] text-white flex items-center justify-center text-sm shadow-sm">
+                        <i class="fa-solid fa-receipt"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-[#195618] text-base flex items-center space-x-2">
+                            <span>Detalle del Pedido</span>
+                            <span id="modalPedidoFolio" class="font-mono text-xs px-2 py-0.5 rounded-md bg-[#C5DB9E]/40 text-[#195618] border border-[#93A981]/40">#PED-0</span>
+                        </h3>
+                        <p class="text-xs text-slate-500">Desglose de productos y entrega</p>
+                    </div>
+                </div>
+                <button type="button" id="closeModalDetallePedidoBtn" class="text-slate-400 hover:text-slate-700 text-xl font-bold p-1 rounded-lg hover:bg-slate-100 transition-colors">&times;</button>
+            </div>
+
+            <!-- Datos Generales: Fecha, Comprador, Dirección, Estado -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 py-4 text-xs">
+                <div class="p-3 bg-[#C5DB9E]/15 rounded-xl border border-[#93A981]/30 space-y-1">
+                    <p class="text-slate-500 font-medium">Comprador:</p>
+                    <p id="modalPedidoComprador" class="font-bold text-slate-800 text-sm">-</p>
+                    <p class="text-slate-500 font-medium pt-1">Fecha de Pedido:</p>
+                    <p id="modalPedidoFecha" class="font-semibold text-slate-700">-</p>
+                </div>
+                <div class="p-3 bg-[#C5DB9E]/15 rounded-xl border border-[#93A981]/30 space-y-1">
+                    <p class="text-slate-500 font-medium">Dirección de Entrega:</p>
+                    <p id="modalPedidoDireccion" class="font-bold text-slate-800 text-sm truncate">-</p>
+                    <p class="text-slate-500 font-medium pt-1">Estado:</p>
+                    <div id="modalPedidoEstadoContainer">
+                        <span id="modalPedidoEstado" class="px-2.5 py-0.5 text-xs font-bold rounded-full border bg-emerald-50 text-emerald-700 border-emerald-300">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla Desglosada de Productos -->
+            <div class="py-2">
+                <h4 class="text-xs uppercase font-extrabold text-[#195618] mb-2 flex items-center space-x-1.5">
+                    <i class="fa-solid fa-basket-shopping text-xs"></i>
+                    <span>Productos Incluidos</span>
+                </h4>
+                <div class="overflow-x-auto border border-[#93A981]/40 rounded-xl">
+                    <table id="tablaModalDetalleProductos" class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-[#C5DB9E]/25 font-bold text-[#195618] border-b border-[#93A981]/30">
+                            <tr>
+                                <th class="px-4 py-2.5">Producto</th>
+                                <th class="px-4 py-2.5 text-center">Cantidad</th>
+                                <th class="px-4 py-2.5 text-right">Precio Unitario</th>
+                                <th class="px-4 py-2.5 text-right">Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyModalDetalleProductos" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Total General en MXN y Botón Cerrar -->
+            <div class="pt-4 mt-2 border-t border-[#93A981]/25 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="text-sm font-semibold text-slate-700">
+                    <span>Total del Pedido:</span>
+                    <span id="modalPedidoTotal" class="text-lg font-black text-[#195618] ml-2 tabular-nums">$0.00 MXN</span>
+                </div>
+                <button type="button" id="btnCerrarModalDetallePedido" class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#195618] hover:bg-[#134412] text-white font-bold text-xs transition-all shadow-md shadow-[#195618]/20">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL EDICIÓN DE PUBLICACIÓN (MÓDULO DE CONTROL) -->
     <div id="modalEditarPubControl" class="modal-backdrop">
         <div class="modal-box max-w-md">

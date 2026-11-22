@@ -2037,7 +2037,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 direccion_entrega: direccion,
                 comprador_nombre: currentUser.nombre || 'Cliente LocalMarket',
                 comprador_telefono: currentUser.telefono || '5512345678',
-                numero_socio_atencion: currentUser.numero_socio || (currentUser.numero_socio_atencion || 1)
+                numero_socio_atencion: currentUser.numero_socio || (currentUser.numero_socio_atencion || 1),
+                items: carritoCompra.length > 0 
+                    ? carritoCompra.filter(i => (parseInt(i.cantidad, 10) || 0) > 0).map(i => ({
+                        id_producto: i.id_producto || i.id,
+                        nombre: i.titulo || i.nombre,
+                        cantidad: parseInt(i.cantidad, 10) || 1,
+                        precio_unitario: parseFloat(i.precio) || 0,
+                        subtotal: (parseInt(i.cantidad, 10) || 1) * (parseFloat(i.precio) || 0)
+                    }))
+                    : [{
+                        id_producto: prodPrincipalId,
+                        nombre: tituloResumen,
+                        cantidad: cantidadTotal,
+                        precio_unitario: total / cantidadTotal,
+                        subtotal: total
+                    }]
             };
 
             try {
@@ -2144,6 +2159,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (orders.length > 0) {
+                    window._pedidosCargados = orders;
                     orders.forEach(order => {
                         const fecha = order.fecha_pedido ? String(order.fecha_pedido).substring(0, 10) : 'Hoy';
                         let badgeClass = 'bg-[#5E7824]/15 text-[#5E7824] border-[#5E7824]/40';
@@ -2157,6 +2173,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (isAdmin || isSocio) {
                             accionesHtml = `
                                 <div class="inline-flex items-center space-x-1.5">
+                                    <button type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-[#195618] border border-[#88BD79] hover:bg-emerald-100 transition-all inline-flex items-center space-x-1 shadow-xs" onclick="verDetallePedido(${order.id_pedido})" title="Ver detalle de productos">
+                                        <i class="fa-solid fa-list-check"></i>
+                                        <span>Ver productos</span>
+                                    </button>
                                     <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-[#88BD79]/20 text-[#195618] border border-[#88BD79] hover:bg-[#88BD79]/40 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'En camino')">
                                         🚚 En camino
                                     </button>
@@ -2169,18 +2189,26 @@ document.addEventListener('DOMContentLoaded', () => {
                                 </div>
                             `;
                         } else {
-                            accionesHtml = isCancelable ? `
-                                <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-all" onclick="cancelarPedido(${order.id_pedido})">
-                                    ✕ Cancelar
-                                </button>
-                            ` : `<span class="text-xs text-slate-400 italic">Sin acciones</span>`;
+                            accionesHtml = `
+                                <div class="inline-flex items-center space-x-1.5">
+                                    <button type="button" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-[#195618] border border-[#88BD79] hover:bg-emerald-100 transition-all inline-flex items-center space-x-1 shadow-xs" onclick="verDetallePedido(${order.id_pedido})" title="Ver detalle de productos">
+                                        <i class="fa-solid fa-list-check"></i>
+                                        <span>Ver productos</span>
+                                    </button>
+                                    ${isCancelable ? `
+                                        <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-all" onclick="cancelarPedido(${order.id_pedido})">
+                                            ✕ Cancelar
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            `;
                         }
 
                         tbody.innerHTML += `<tr>
-                            <td class="px-6 py-4 font-mono font-bold text-slate-800">#PED-${order.id_pedido}</td>
+                            <td class="px-6 py-4 font-mono font-bold text-[#195618] cursor-pointer hover:underline" onclick="verDetallePedido(${order.id_pedido})" title="Clic para ver detalle de productos">#PED-${order.id_pedido}</td>
                             <td class="px-6 py-4 font-semibold text-slate-800">
                                 ${order.comprador_nombre || 'Cliente General'}
-                                <span class="block text-xs text-slate-400 font-normal">${order.producto_titulo || 'Producto'}</span>
+                                <span class="block text-xs text-slate-500 font-medium">${order.producto_titulo || order.productos_resumen || 'Sin productos'}</span>
                             </td>
                             <td class="px-6 py-4 text-xs text-slate-500">${fecha}</td>
                             <td class="px-6 py-4 font-black text-[#195618] tabular-nums">$${parseFloat(order.total).toFixed(2)}</td>
@@ -2235,6 +2263,129 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Error al cancelar pedido.');
         }
     };
+
+    window.verDetallePedido = async function(idPedido) {
+        const modal = document.getElementById('modalDetallePedido');
+        if (!modal) return;
+
+        document.getElementById('modalPedidoFolio').textContent = `#PED-${idPedido}`;
+        document.getElementById('modalPedidoComprador').textContent = 'Cargando...';
+        document.getElementById('modalPedidoFecha').textContent = '-';
+        document.getElementById('modalPedidoDireccion').textContent = '-';
+        document.getElementById('modalPedidoTotal').textContent = '$0.00 MXN';
+        const tbody = document.getElementById('tbodyModalDetalleProductos');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-slate-400">Cargando productos...</td></tr>';
+
+        modal.classList.add('active');
+
+        try {
+            let orderData = null;
+            try {
+                const res = await fetch(`/api/pedidos/${idPedido}/detalle`);
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json.success && json.data) orderData = json.data;
+                }
+            } catch (err) {}
+
+            if (!orderData && Array.isArray(window._pedidosCargados)) {
+                orderData = window._pedidosCargados.find(p => Number(p.id_pedido) === Number(idPedido));
+            }
+
+            if (!orderData) {
+                if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-rose-500">No se pudo cargar el detalle del pedido.</td></tr>';
+                return;
+            }
+
+            const fecha = orderData.fecha_pedido ? String(orderData.fecha_pedido).substring(0, 10) : 'Hoy';
+            document.getElementById('modalPedidoComprador').textContent = orderData.comprador_nombre || 'Cliente General';
+            document.getElementById('modalPedidoFecha').textContent = fecha;
+            document.getElementById('modalPedidoDireccion').textContent = orderData.direccion_entrega || 'Domicilio registrado';
+            document.getElementById('modalPedidoTotal').textContent = `$${parseFloat(orderData.total || 0).toFixed(2)} MXN`;
+
+            const estadoEl = document.getElementById('modalPedidoEstado');
+            if (estadoEl) {
+                estadoEl.textContent = orderData.estado || 'Pendiente';
+                let badgeClass = 'bg-[#5E7824]/15 text-[#5E7824] border-[#5E7824]/40';
+                if (orderData.estado === 'Completado') badgeClass = 'bg-[#9BBB54]/25 text-[#195618] border-[#9BBB54]';
+                if (orderData.estado === 'En camino') badgeClass = 'bg-[#88BD79]/25 text-[#195618] border-[#88BD79]';
+                if (orderData.estado === 'Cancelado') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
+                estadoEl.className = `px-2.5 py-0.5 text-xs font-bold rounded-full border ${badgeClass}`;
+            }
+
+            let productos = orderData.productos;
+            if (typeof productos === 'string') {
+                try { productos = JSON.parse(productos); } catch (e) { productos = []; }
+            }
+
+            if (!Array.isArray(productos) || productos.length === 0) {
+                if (orderData.producto_titulo && orderData.producto_titulo !== 'Producto') {
+                    const partes = orderData.producto_titulo.split(',').map(s => s.trim()).filter(Boolean);
+                    productos = partes.map(part => {
+                        const m = part.match(/^(\d+)x\s+(.+)$/);
+                        if (m) {
+                            const cant = parseInt(m[1]) || 1;
+                            const nom = m[2];
+                            const precioUnit = parseFloat(orderData.total || 0) / (cant * (partes.length || 1));
+                            return { nombre: nom, cantidad: cant, precio_unitario: precioUnit, subtotal: cant * precioUnit };
+                        }
+                        return { nombre: part, cantidad: 1, precio_unitario: parseFloat(orderData.total || 0), subtotal: parseFloat(orderData.total || 0) };
+                    });
+                } else {
+                    productos = [{
+                        nombre: orderData.producto_titulo || 'Producto General',
+                        cantidad: orderData.cantidad || 1,
+                        precio_unitario: parseFloat(orderData.total || 0) / (orderData.cantidad || 1),
+                        subtotal: parseFloat(orderData.total || 0)
+                    }];
+                }
+            }
+
+            if (tbody) {
+                tbody.innerHTML = '';
+                productos.forEach(prod => {
+                    const cant = parseInt(prod.cantidad) || 1;
+                    const precio = parseFloat(prod.precio_unitario || prod.precio || 0);
+                    const sub = parseFloat(prod.subtotal) || (cant * precio);
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-50/80 transition-colors';
+                    tr.innerHTML = `
+                        <td class="px-4 py-3 font-semibold text-slate-800">
+                            ${prod.nombre || prod.titulo || 'Producto'}
+                        </td>
+                        <td class="px-4 py-3 text-center font-bold text-[#195618] tabular-nums">
+                            ${cant}
+                        </td>
+                        <td class="px-4 py-3 text-right font-medium text-slate-600 tabular-nums">
+                            $${precio.toFixed(2)}
+                        </td>
+                        <td class="px-4 py-3 text-right font-extrabold text-[#195618] tabular-nums">
+                            $${sub.toFixed(2)}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch (e) {
+            console.error('Error mostrando detalle de pedido:', e);
+            if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-rose-500">Error al procesar los datos del pedido.</td></tr>';
+        }
+    };
+
+    function cerrarModalDetallePedido() {
+        const modal = document.getElementById('modalDetallePedido');
+        if (modal) modal.classList.remove('active');
+    }
+    const btnCloseDet = document.getElementById('closeModalDetallePedidoBtn');
+    if (btnCloseDet) btnCloseDet.addEventListener('click', cerrarModalDetallePedido);
+    const btnCerrarDet = document.getElementById('btnCerrarModalDetallePedido');
+    if (btnCerrarDet) btnCerrarDet.addEventListener('click', cerrarModalDetallePedido);
+    const modalDetalle = document.getElementById('modalDetallePedido');
+    if (modalDetalle) {
+        modalDetalle.addEventListener('click', (e) => {
+            if (e.target === modalDetalle) cerrarModalDetallePedido();
+        });
+    }
 
     // ==========================================
     // MÓDULO 7: NOTIFICACIONES (ADMIN & SOCIO)
