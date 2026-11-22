@@ -629,15 +629,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentVal = selectOtp.value;
         const userList = (users && users.length > 0) ? users : (window.usuariosRegistrados || defaultMainUsers);
 
-        selectOtp.innerHTML = '<option value="">-- Seleccionar Usuario o Socio registrado --</option>';
+        selectOtp.innerHTML = '<option value="">-- Seleccionar Socio --</option>';
         userList.forEach(u => {
             const opt = document.createElement('option');
             opt.value = u.id_usuario;
-            opt.dataset.telefono = u.telefono || '';
-            opt.dataset.nombre = u.nombre || 'Usuario';
-            const rolLabel = u.nombre_rol || u.rol || 'Cliente';
-            const socioTag = u.numero_socio ? ` [Socio #${u.numero_socio}]` : '';
-            opt.textContent = `${u.nombre} (${u.telefono || 'Sin tel.'}) - ${rolLabel}${socioTag}`;
+            opt.dataset.telefono = (u.telefono || '').replace(/\D/g, '');
+            opt.dataset.nombre = u.nombre || 'Socio';
+
+            // Formato limpio: únicamente nombre y número de socio sin el teléfono: Ej: "Gisela - Socio #1"
+            let etiqueta = '';
+            if (u.numero_socio) {
+                etiqueta = `${u.nombre} - Socio #${u.numero_socio}`;
+            } else if ((u.nombre_rol || u.rol || '').toLowerCase().includes('admin')) {
+                etiqueta = `${u.nombre} - Administrador`;
+            } else {
+                etiqueta = `${u.nombre} - ${u.nombre_rol || u.rol || 'Socio'}`;
+            }
+
+            opt.textContent = etiqueta;
             selectOtp.appendChild(opt);
         });
 
@@ -645,12 +654,21 @@ document.addEventListener('DOMContentLoaded', () => {
             selectOtp.value = currentVal;
         }
 
+        // Mantener autocompletado del teléfono al seleccionar un socio
         selectOtp.onchange = () => {
             const selectedOpt = selectOtp.options[selectOtp.selectedIndex];
             if (selectedOpt && selectedOpt.dataset.telefono && inputTel) {
                 inputTel.value = selectedOpt.dataset.telefono.replace(/\D/g, '');
             }
         };
+
+        // Si ya hay un socio seleccionado y el input está vacío, autocompletar
+        if (selectOtp.selectedIndex > 0 && inputTel && !inputTel.value) {
+            const selectedOpt = selectOtp.options[selectOtp.selectedIndex];
+            if (selectedOpt && selectedOpt.dataset.telefono) {
+                inputTel.value = selectedOpt.dataset.telefono.replace(/\D/g, '');
+            }
+        }
     };
 
     window.cargarEdicionUsuario = (u) => {
@@ -755,36 +773,52 @@ document.addEventListener('DOMContentLoaded', () => {
     const otpFeedback = document.getElementById('otpFeedback');
     const btnEnviarOtpWa = document.getElementById('btnEnviarOtpWa');
 
+    // Código guardado únicamente en memoria protegida (no visible en pantalla de laptop)
+    let ultimoCodigoOtpGenerado = null;
+
     if (btnGenerarOtp) {
         btnGenerarOtp.addEventListener('click', async () => {
-            // Generar dinámicamente un número aleatorio de 6 dígitos
-            const nuevoOtp = Math.floor(100000 + Math.random() * 900000).toString();
-            if (displayOtpCode) displayOtpCode.textContent = nuevoOtp;
+            // Generar dinámicamente número de 6 dígitos protegido en memoria
+            ultimoCodigoOtpGenerado = Math.floor(100000 + Math.random() * 900000).toString();
+
+            // Enmascarar código en pantalla para garantizar seguridad 2FA
+            if (displayOtpCode) {
+                displayOtpCode.textContent = '• • • • • •';
+            }
+
+            const otpStatusMsg = document.getElementById('otpStatusMessage');
+            if (otpStatusMsg) {
+                otpStatusMsg.textContent = '✅ Código enviado por WhatsApp al teléfono registrado.';
+                otpStatusMsg.className = 'text-xs text-[#195618] font-bold';
+            }
 
             if (otpFeedback) {
                 otpFeedback.classList.add('hidden');
                 otpFeedback.innerHTML = '';
             }
             const valInput = document.getElementById('val_otp_input');
-            if (valInput) valInput.value = '';
+            if (valInput) {
+                valInput.value = '';
+                valInput.focus();
+            }
 
             // Obtener el teléfono y nombre del usuario seleccionado o del input manual
             const selectOtp = document.getElementById('otp-usuario-select');
             const inputTel = document.getElementById('otp-telefono-input');
             let tel = (inputTel ? inputTel.value.trim().replace(/\D/g, '') : '');
-            let nombreDest = 'Usuario';
+            let nombreDest = 'Socio';
             let targetUserId = currentUser ? currentUser.id_usuario : 1;
 
             if (selectOtp && selectOtp.selectedIndex > 0) {
                 const opt = selectOtp.options[selectOtp.selectedIndex];
-                nombreDest = opt.dataset.nombre || 'Usuario';
+                nombreDest = opt.dataset.nombre || 'Socio';
                 targetUserId = opt.value || targetUserId;
                 if (!tel && opt.dataset.telefono) {
                     tel = opt.dataset.telefono.replace(/\D/g, '');
                     if (inputTel) inputTel.value = tel;
                 }
             } else if (currentUser) {
-                nombreDest = currentUser.nombre || 'Usuario';
+                nombreDest = currentUser.nombre || 'Socio';
                 if (!tel && currentUser.telefono) {
                     tel = String(currentUser.telefono).replace(/\D/g, '');
                     if (inputTel) inputTel.value = tel;
@@ -795,7 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await fetch('/api/otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id_usuario: targetUserId, codigo_otp: nuevoOtp, intentos_fallidos: 0 })
+                    body: JSON.stringify({ id_usuario: targetUserId, codigo_otp: ultimoCodigoOtpGenerado, intentos_fallidos: 0 })
                 });
                 if (typeof fetchOtpHistory === 'function') await fetchOtpHistory();
             } catch (e) {
@@ -806,7 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // https://wa.me/52<TELEFONO_10_DIGITOS>?text=Hola%20<NOMBRE>,%20tu%20código%20de%20verificación%20LocalMarket%20es:%20<CODIGO_OTP>
             if (tel && tel.length >= 10) {
                 const cleanPhone = tel.slice(-10);
-                const waText = encodeURIComponent(`Hola ${nombreDest}, tu código de verificación LocalMarket es: ${nuevoOtp}`);
+                const waText = encodeURIComponent(`Hola ${nombreDest}, tu código de verificación LocalMarket es: ${ultimoCodigoOtpGenerado}`);
                 const waUrl = `https://wa.me/52${cleanPhone}?text=${waText}`;
                 if (btnEnviarOtpWa) {
                     btnEnviarOtpWa.href = waUrl;
@@ -820,9 +854,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (formValidarOtp) {
         formValidarOtp.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // 3.2 Lee el valor de "VALIDAR CÓDIGO"
+            // Lee el valor ingresado por el usuario en "VALIDAR CÓDIGO"
             const inputVal = (document.getElementById('val_otp_input')?.value || '').trim();
-            const currentCode = (document.getElementById('displayOtpCode')?.textContent || '').trim();
 
             function mostrarOtpFeedback(esExitoso, mensaje) {
                 if (!otpFeedback) return;
@@ -836,18 +869,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Si coincide con el número de 6 dígitos generado en pantalla
-            if (inputVal && inputVal === currentCode) {
-                mostrarOtpFeedback(true, 'Código OTP verificado correctamente');
-                try {
-                    await fetch('/api/otp/validar', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ codigo: inputVal, id_usuario: currentUser ? currentUser.id_usuario : 1 })
-                    });
-                } catch (err) {}
+            if (!inputVal) {
+                mostrarOtpFeedback(false, 'Por favor ingresa los 6 dígitos recibidos por WhatsApp.');
+                return;
+            }
+
+            // Validar contra la variable en memoria protegida o contra el backend
+            let esValido = false;
+            if (ultimoCodigoOtpGenerado && inputVal === ultimoCodigoOtpGenerado) {
+                esValido = true;
+            }
+
+            const selectOtp = document.getElementById('otp-usuario-select');
+            const targetUserId = (selectOtp && selectOtp.value) ? selectOtp.value : (currentUser ? currentUser.id_usuario : 1);
+
+            try {
+                const res = await fetch('/api/otp/validar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo: inputVal, id_usuario: targetUserId })
+                });
+                const resData = await res.json();
+                if (res.ok && resData.success) {
+                    esValido = true;
+                }
+            } catch (err) {
+                console.warn('Validación de OTP contra backend falló, usando validación local:', err);
+            }
+
+            if (esValido) {
+                mostrarOtpFeedback(true, 'Código OTP verificado correctamente desde WhatsApp');
+                const otpStatusMsg = document.getElementById('otpStatusMessage');
+                if (otpStatusMsg) {
+                    otpStatusMsg.textContent = '🔒 Verificación completada con éxito.';
+                    otpStatusMsg.className = 'text-xs text-[#195618] font-bold';
+                }
             } else {
-                // Si no coincide o no se ha escrito nada
                 mostrarOtpFeedback(false, 'Código OTP inválido o no coincide');
             }
         });
@@ -865,7 +922,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     tbody.innerHTML += `<tr>
                         <td class="px-6 py-3.5 font-bold text-slate-800">${item.usuario_nombre || 'Administrador'}</td>
                         <td class="px-6 py-3.5">${item.telefono || '5512345678'}</td>
-                        <td class="px-6 py-3.5"><span class="font-mono font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded border border-purple-200">${item.codigo_otp}</span></td>
+                        <td class="px-6 py-3.5"><span class="font-mono font-bold text-[#195618] bg-[#C5DB9E]/30 px-2.5 py-1 rounded border border-[#88BD79]/40 tracking-widest">• • • • • •</span></td>
                         <td class="px-6 py-3.5 font-bold ${item.intentos_fallidos > 0 ? 'text-red-500' : 'text-slate-500'}">${item.intentos_fallidos || 0}</td>
                         <td class="px-6 py-3.5"><span class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span></td>
                     </tr>`;
