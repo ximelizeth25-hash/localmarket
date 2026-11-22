@@ -1583,7 +1583,30 @@ document.addEventListener('DOMContentLoaded', () => {
             detalleProducto.style.display = 'none';
         }
         currentSelectedProduct = null;
-        try { sessionStorage.removeItem('producto_seleccionado_compra'); } catch (e) {}
+        window.productoSeleccionadoCompra = null;
+        try {
+            sessionStorage.removeItem('producto_seleccionado_compra');
+            sessionStorage.removeItem('productoSeleccionadoCompra');
+            localStorage.removeItem('producto_seleccionado_compra');
+            localStorage.removeItem('productoSeleccionadoCompra');
+        } catch (e) {}
+
+        const formCompraDirecta = document.getElementById('formCompraDirecta');
+        if (formCompraDirecta) formCompraDirecta.reset();
+        const detailMainImg = document.getElementById('detailMainImg');
+        if (detailMainImg) detailMainImg.src = '';
+        const detailThumb1 = document.getElementById('detailThumb1');
+        if (detailThumb1) detailThumb1.src = '';
+        const detailThumb3 = document.getElementById('detailThumb3');
+        if (detailThumb3) detailThumb3.src = '';
+        const detailTitulo = document.getElementById('detailTitulo');
+        if (detailTitulo) detailTitulo.textContent = '';
+        const detailPrecio = document.getElementById('detailPrecio');
+        if (detailPrecio) detailPrecio.textContent = '';
+        const detailDescripcion = document.getElementById('detailDescripcion');
+        if (detailDescripcion) detailDescripcion.textContent = '';
+        const detailCategoria = document.getElementById('detailCategoria');
+        if (detailCategoria) detailCategoria.textContent = '';
     }
 
     function mostrarDetalleCompra() {
@@ -1960,16 +1983,30 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.open(`https://wa.me/52${telSocio}?text=${waMsg}`, '_blank');
                     }
 
-                    // Limpiar carrito tras compra exitosa y restaurar estado vacío
+                    // 1. Limpiar variables de compra activa y almacenamiento local/sesión
                     carritoCompra = [];
                     guardarCarrito();
+                    currentSelectedProduct = null;
+                    window.productoSeleccionadoCompra = null;
+                    try {
+                        sessionStorage.removeItem('carritoCompra');
+                        sessionStorage.removeItem('producto_seleccionado_compra');
+                        sessionStorage.removeItem('productoSeleccionadoCompra');
+                        localStorage.removeItem('carritoCompra');
+                        localStorage.removeItem('producto_seleccionado_compra');
+                        localStorage.removeItem('productoSeleccionadoCompra');
+                    } catch (e) {}
+
+                    // 2 y 3. Ocultar detalle/formulario del producto y mostrar la tarjeta original de estado vacío
                     mostrarEstadoVacioCompra();
                     renderCarrito();
+
+                    // Permanecer en la vista de Compra con la tarjeta de carrito vacío
+                    switchTab('mod_detalle');
 
                     await fetchCatalogo();
                     await fetchPedidos();
                     if (isAdmin) await fetchAdminMetrics();
-                    switchTab('mod_pedidos');
                 } else {
                     alert('Error: ' + (data.message || 'No se pudo procesar el pedido.'));
                 }
