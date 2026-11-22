@@ -218,6 +218,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Control de visibilidad de compra (Momento 1: Al abrir la pestaña Compra)
+        if (targetId === 'mod_detalle') {
+            if (typeof mostrarEstadoCompra === 'function') mostrarEstadoCompra();
+        }
+
         try {
             loadModuleData(targetId);
         } catch (err) {
@@ -313,9 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (moduleId === 'mod_auth') { fetchOtpHistory(); cargarUsuarios(); }
         if (moduleId === 'mod_catalogo') fetchCatalogo();
         if (moduleId === 'mod_detalle') {
-            if (!currentSelectedProduct && (!carritoCompra || carritoCompra.length === 0)) {
-                if (typeof mostrarEstadoVacioCompra === 'function') mostrarEstadoVacioCompra();
-            }
+            if (typeof mostrarEstadoCompra === 'function') mostrarEstadoCompra();
             if (typeof renderCarrito === 'function') renderCarrito();
             if (typeof updateCompraTotal === 'function') updateCompraTotal();
         }
@@ -1455,14 +1458,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         guardarCarrito();
 
-                        // 2. Guardar producto actual como seleccionado en sessionStorage y en memoria
+                        // 2. Guardar producto actual como seleccionado
+                        productoSeleccionadoCompra = prodData;
+                        currentSelectedProduct = prodData;
+                        window.productoSeleccionadoCompra = prodData;
                         try {
                             sessionStorage.setItem('producto_seleccionado_compra', JSON.stringify(prodData));
+                            sessionStorage.setItem('productoSeleccionadoCompra', JSON.stringify(prodData));
                         } catch (e) {}
-                        currentSelectedProduct = prodData;
 
-                        // 3. Abrir detalle de compra y actualizar carrito
+                        // 3. Abrir detalle de compra, mostrar estado compra y navegar
                         openProductDetail(prodData);
+                        mostrarEstadoCompra();
+                        switchTab('mod_detalle');
                     });
                 }
                 if (isCliente) {
@@ -1555,14 +1563,30 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // MÓDULO 5: COMPRA Y CARRITO DE COMPRAS
     // ==========================================
+    let productoSeleccionadoCompra = null;
     let currentSelectedProduct = null;
+    window.productoSeleccionadoCompra = null;
     let carritoCompra = [];
     try {
         const storedCart = sessionStorage.getItem('carritoCompra');
         carritoCompra = storedCart ? JSON.parse(storedCart) : [];
         if (!Array.isArray(carritoCompra)) carritoCompra = [];
+        const storedProd = sessionStorage.getItem('producto_seleccionado_compra');
+        if (storedProd && carritoCompra.length > 0) {
+            productoSeleccionadoCompra = JSON.parse(storedProd);
+            currentSelectedProduct = productoSeleccionadoCompra;
+            window.productoSeleccionadoCompra = productoSeleccionadoCompra;
+        } else {
+            productoSeleccionadoCompra = null;
+            currentSelectedProduct = null;
+            window.productoSeleccionadoCompra = null;
+            sessionStorage.removeItem('producto_seleccionado_compra');
+            sessionStorage.removeItem('productoSeleccionadoCompra');
+        }
     } catch (e) {
         carritoCompra = [];
+        productoSeleccionadoCompra = null;
+        currentSelectedProduct = null;
     }
 
     function guardarCarrito() {
@@ -1571,17 +1595,37 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {}
     }
 
+    // Control de visibilidad de los dos contenedores de compra:
+    // Contenedor A (id="compra-vacia-card"): Tarjeta blanca con carrito verde y botón "Ir al Catálogo"
+    // Contenedor B (id="compra-detalle-card"): Tarjeta con detalle del producto y botón "Generar Pedido"
+    function mostrarEstadoCompra() {
+        const cardVacia = document.getElementById('compra-vacia-card') || document.getElementById('compraEstadoVacio');
+        const cardDetalle = document.getElementById('compra-detalle-card') || document.getElementById('compraDetalleProducto');
+
+        if (!productoSeleccionadoCompra) {
+            if (cardDetalle) {
+                cardDetalle.classList.add('hidden');
+                cardDetalle.style.display = 'none';
+            }
+            if (cardVacia) {
+                cardVacia.classList.remove('hidden');
+                cardVacia.style.display = 'block';
+            }
+        } else {
+            if (cardVacia) {
+                cardVacia.classList.add('hidden');
+                cardVacia.style.display = 'none';
+            }
+            if (cardDetalle) {
+                cardDetalle.classList.remove('hidden');
+                cardDetalle.style.display = 'block';
+            }
+        }
+    }
+    window.mostrarEstadoCompra = mostrarEstadoCompra;
+
     function mostrarEstadoVacioCompra() {
-        const estadoVacio = document.getElementById('compraEstadoVacio');
-        const detalleProducto = document.getElementById('compraDetalleProducto');
-        if (estadoVacio) {
-            estadoVacio.classList.remove('hidden');
-            estadoVacio.style.display = 'block';
-        }
-        if (detalleProducto) {
-            detalleProducto.classList.add('hidden');
-            detalleProducto.style.display = 'none';
-        }
+        productoSeleccionadoCompra = null;
         currentSelectedProduct = null;
         window.productoSeleccionadoCompra = null;
         try {
@@ -1607,19 +1651,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (detailDescripcion) detailDescripcion.textContent = '';
         const detailCategoria = document.getElementById('detailCategoria');
         if (detailCategoria) detailCategoria.textContent = '';
+
+        mostrarEstadoCompra();
     }
+    window.mostrarEstadoVacioCompra = mostrarEstadoVacioCompra;
 
     function mostrarDetalleCompra() {
-        const estadoVacio = document.getElementById('compraEstadoVacio');
-        const detalleProducto = document.getElementById('compraDetalleProducto');
-        if (estadoVacio) {
-            estadoVacio.classList.add('hidden');
-            estadoVacio.style.display = 'none';
-        }
-        if (detalleProducto) {
-            detalleProducto.classList.remove('hidden');
-            detalleProducto.style.display = 'block';
-        }
+        mostrarEstadoCompra();
     }
 
     // Inicializar listener en botón Ir al Catálogo del estado vacío
@@ -1637,9 +1675,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const countBadge = document.getElementById('carritoItemsCountBadge');
         const subtotalText = document.getElementById('carritoSubtotalText');
         const totalText = document.getElementById('carritoTotalText');
-        const estadoVacio = document.getElementById('compraEstadoVacio');
-        const detalleProducto = document.getElementById('compraDetalleProducto');
-
         if (!container) return;
 
         // Si el carrito está vacío y no hay producto seleccionado
@@ -1656,14 +1691,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const totalPreview = document.getElementById('compra_total_preview');
             if (totalPreview) totalPreview.value = '$0.00 MXN';
 
-            if (!currentSelectedProduct) {
-                mostrarEstadoVacioCompra();
+            if (!productoSeleccionadoCompra) {
+                mostrarEstadoCompra();
             }
             return;
         }
 
         // Si hay artículos, asegurar que el panel esté visible
-        mostrarDetalleCompra();
+        mostrarEstadoCompra();
 
         container.innerHTML = '';
         let totalGeneral = 0;
@@ -1778,7 +1813,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (carritoCompra.length === 0) {
             mostrarEstadoVacioCompra();
         } else {
-            if (currentSelectedProduct && eliminado && ((currentSelectedProduct.id || currentSelectedProduct.id_producto) === (eliminado.id || eliminado.id_producto))) {
+            if (productoSeleccionadoCompra && eliminado && ((productoSeleccionadoCompra.id || productoSeleccionadoCompra.id_producto) === (eliminado.id || eliminado.id_producto))) {
                 openProductDetail(carritoCompra[0]);
             }
         }
@@ -1787,13 +1822,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function openProductDetail(product) {
+        productoSeleccionadoCompra = product;
         currentSelectedProduct = product;
+        window.productoSeleccionadoCompra = product;
         try {
             sessionStorage.setItem('producto_seleccionado_compra', JSON.stringify(product));
+            sessionStorage.setItem('productoSeleccionadoCompra', JSON.stringify(product));
         } catch (e) {}
 
-        // Ocultar mensaje de carrito vacío y mostrar panel de compra
-        mostrarDetalleCompra();
+        // Mostrar panel de compra según estado
+        mostrarEstadoCompra();
 
         const btnIrAlCatalogo = document.getElementById('btnIrAlCatalogo');
         if (btnIrAlCatalogo && !btnIrAlCatalogo._hasReturnListener) {
@@ -1983,11 +2021,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.open(`https://wa.me/52${telSocio}?text=${waMsg}`, '_blank');
                     }
 
-                    // 1. Limpiar variables de compra activa y almacenamiento local/sesión
-                    carritoCompra = [];
-                    guardarCarrito();
+                    // Momento 3: Inmediatamente después de que se confirme y guarde un pedido en "Generar Pedido (Pago Contra Entrega)"
+                    // 1. Poner productoSeleccionadoCompra = null y vaciar carrito/storage
+                    productoSeleccionadoCompra = null;
                     currentSelectedProduct = null;
                     window.productoSeleccionadoCompra = null;
+                    carritoCompra = [];
+                    guardarCarrito();
                     try {
                         sessionStorage.removeItem('carritoCompra');
                         sessionStorage.removeItem('producto_seleccionado_compra');
@@ -1997,8 +2037,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         localStorage.removeItem('productoSeleccionadoCompra');
                     } catch (e) {}
 
-                    // 2 y 3. Ocultar detalle/formulario del producto y mostrar la tarjeta original de estado vacío
-                    mostrarEstadoVacioCompra();
+                    // Limpiar formulario y datos del producto
+                    const formCompraDirecta = document.getElementById('formCompraDirecta');
+                    if (formCompraDirecta) formCompraDirecta.reset();
+                    const detailMainImg = document.getElementById('detailMainImg');
+                    if (detailMainImg) detailMainImg.src = '';
+                    const detailThumb1 = document.getElementById('detailThumb1');
+                    if (detailThumb1) detailThumb1.src = '';
+                    const detailThumb3 = document.getElementById('detailThumb3');
+                    if (detailThumb3) detailThumb3.src = '';
+                    const detailTitulo = document.getElementById('detailTitulo');
+                    if (detailTitulo) detailTitulo.textContent = '';
+                    const detailPrecio = document.getElementById('detailPrecio');
+                    if (detailPrecio) detailPrecio.textContent = '';
+                    const detailDescripcion = document.getElementById('detailDescripcion');
+                    if (detailDescripcion) detailDescripcion.textContent = '';
+                    const detailCategoria = document.getElementById('detailCategoria');
+                    if (detailCategoria) detailCategoria.textContent = '';
+
+                    // 2 y 3. Ocultar detalle de producto y mostrar tarjeta original de estado vacío
+                    mostrarEstadoCompra();
                     renderCarrito();
 
                     // Permanecer en la vista de Compra con la tarjeta de carrito vacío
