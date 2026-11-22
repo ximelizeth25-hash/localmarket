@@ -232,7 +232,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Teléfono (Máx. 10 Dígitos Numéricos)</label>
-                                    <input type="tel" id="reg_telefono" required maxlength="10" placeholder="" class="w-full px-3.5 py-2 text-sm rounded-xl border border-[#93A981]/60 bg-[#C5DB9E]/10 focus:bg-white focus:ring-2 focus:ring-[#5C8754]/30 focus:border-[#5C8754] focus:outline-none phone-mask transition-all">
+                                    <input type="tel" id="reg_telefono" required inputmode="numeric" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" placeholder="" class="w-full px-3.5 py-2 text-sm rounded-xl border border-[#93A981]/60 bg-[#C5DB9E]/10 focus:bg-white focus:ring-2 focus:ring-[#5C8754]/30 focus:border-[#5C8754] focus:outline-none phone-mask transition-all">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Rol</label>
@@ -294,7 +294,7 @@
 
                             <div>
                                 <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Teléfono WhatsApp (10 Dígitos)</label>
-                                <input type="tel" id="otp-telefono-input" placeholder="" maxlength="10" class="w-full text-xs px-3.5 py-2 rounded-xl border border-[#93A981]/60 focus:ring-2 focus:ring-[#5C8754]/30 focus:border-[#5C8754] focus:outline-none bg-white font-mono">
+                                <input type="tel" id="otp-telefono-input" inputmode="numeric" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 10)" placeholder="" class="w-full text-xs px-3.5 py-2 rounded-xl border border-[#93A981]/60 focus:ring-2 focus:ring-[#5C8754]/30 focus:border-[#5C8754] focus:outline-none bg-white font-mono phone-mask">
                             </div>
 
                             <div class="text-center space-y-2.5 p-4 bg-[#C5DB9E]/20 rounded-xl border border-[#93A981]/40">
