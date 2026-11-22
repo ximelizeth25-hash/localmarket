@@ -14,11 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUser = { nombre: 'Administrador', nombre_rol: 'Administrador' };
     }
 
-    const roleString = (currentUser.nombre_rol || 'Cliente').trim().toLowerCase();
+    const roleString = (currentUser.nombre_rol || currentUser.rol || 'Cliente').trim().toLowerCase();
     const isAdmin = roleString.includes('admin') || roleString.includes('administrador');
-    const isVendedor = !isAdmin && roleString.includes('vendedor');
-    const isCliente = !isAdmin && !isVendedor;
-    const userRoleKey = isAdmin ? 'admin' : (isVendedor ? 'vendedor' : 'cliente');
+    const isSocio = !isAdmin && (roleString.includes('socio') || roleString.includes('vendedor'));
+    const isCliente = !isAdmin && !isSocio;
+    const userRoleKey = isAdmin ? 'admin' : (isSocio ? 'socio' : 'cliente');
 
     // Función para renderizar los datos del usuario activo en sidebar y módulo Perfil
     window.renderUserProfile = function() {
@@ -33,7 +33,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const name = currentUser.nombre || 'Usuario';
         const email = currentUser.correo || 'correo@localmarket.com';
-        const roleCleanName = currentUser.nombre_rol || (isAdmin ? 'Administrador' : (isVendedor ? 'Vendedor' : 'Cliente'));
+        
+        let roleCleanName = 'Cliente';
+        if (isAdmin) {
+            roleCleanName = 'Administrador';
+        } else if (isSocio) {
+            roleCleanName = `Socio #${currentUser.numero_socio || 1}`;
+        } else {
+            roleCleanName = currentUser.numero_socio ? `Cliente del Socio #${currentUser.numero_socio}` : 'Cliente';
+        }
+
         const photoUrl = currentUser.foto_perfil || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160';
 
         // Actualizar pie del sidebar (SIN prefijo "ROL:")
@@ -77,10 +86,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aplicar visibilidad granular de pestañas según el rol
     function applyRoleRestrictions() {
         tabs.forEach(tab => {
-            const rawRoles = tab.getAttribute('data-roles') || 'admin,vendedor,cliente';
-            const allowedRoles = rawRoles.split(',').map(r => r.trim());
+            const rawRoles = tab.getAttribute('data-roles') || 'admin,socio,cliente';
+            const allowedRoles = rawRoles.split(',').map(r => r.trim().toLowerCase());
             
-            if (!allowedRoles.includes(userRoleKey)) {
+            const isAllowed = allowedRoles.includes(userRoleKey) || 
+                              (userRoleKey === 'socio' && allowedRoles.includes('vendedor'));
+
+            if (!isAllowed) {
                 tab.classList.add('hidden');
                 tab.style.display = 'none';
             } else {
@@ -109,10 +121,13 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.addEventListener('click', (e) => {
             e.preventDefault();
             const targetId = tab.getAttribute('data-target');
-            const rawRoles = tab.getAttribute('data-roles') || 'admin,vendedor,cliente';
-            const allowedRoles = rawRoles.split(',').map(r => r.trim());
+            const rawRoles = tab.getAttribute('data-roles') || 'admin,socio,cliente';
+            const allowedRoles = rawRoles.split(',').map(r => r.trim().toLowerCase());
 
-            if (!allowedRoles.includes(userRoleKey)) {
+            const isAllowed = allowedRoles.includes(userRoleKey) || 
+                              (userRoleKey === 'socio' && allowedRoles.includes('vendedor'));
+
+            if (!isAllowed) {
                 showAccessDenied();
                 return;
             }
@@ -124,8 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let homeTab = 'mod_auth';
         if (isCliente) {
             homeTab = 'mod_catalogo';
-        } else if (isVendedor) {
-            homeTab = 'mod_publicar';
+        } else if (isSocio) {
+            homeTab = 'mod_catalogo';
         } else {
             homeTab = 'mod_auth';
         }
@@ -256,8 +271,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCancelEditUser = document.getElementById('btnCancelEditUser');
 
     const defaultMainUsers = [
-        { id_usuario: 1, id_rol: 1, nombre: 'Administrador', correo: 'admin@localmarket.com', email: 'admin@localmarket.com', contrasena: '1234', password: '1234', telefono: '5512345678', nombre_rol: 'Administrador', rol: 'Administrador', verificado: true, suspendido: false },
-        { id_usuario: 2, id_rol: 2, nombre: 'Gisela', correo: 'ar230111983@arandas.tecmm.edu.mx', email: 'ar230111983@arandas.tecmm.edu.mx', contrasena: '4321', password: '4321', telefono: '3471046625', nombre_rol: 'Vendedor', rol: 'Vendedor', verificado: false, suspendido: false }
+        { id_usuario: 1, id_rol: 1, nombre: 'Administrador', correo: 'admin@localmarket.com', email: 'admin@localmarket.com', contrasena: '1234', password: '1234', telefono: '5512345678', nombre_rol: 'Administrador', rol: 'Administrador', numero_socio: null, verificado: true, suspendido: false },
+        { id_usuario: 2, id_rol: 2, nombre: 'Gisela', correo: 'ar230111983@arandas.tecmm.edu.mx', email: 'ar230111983@arandas.tecmm.edu.mx', contrasena: '4321', password: '4321', telefono: '3471046625', nombre_rol: 'Socio', rol: 'Socio', numero_socio: 1, verificado: false, suspendido: false }
     ];
     window.usuariosRegistrados = window.usuariosRegistrados || [...defaultMainUsers];
 
@@ -323,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300">${rol} (Suspendido)</span>`;
             } else if (rol.toLowerCase().includes('admin')) {
                 badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-[#5E7824] text-white border border-[#5E7824]">${rol}</span>`;
-            } else if (rol.toLowerCase().includes('vendedor')) {
+            } else if (rol.toLowerCase().includes('socio') || rol.toLowerCase().includes('vendedor')) {
                 badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-[#A8C1A0]/40 text-[#195618] border border-[#5C8754]/50">${rol}</span>`;
             } else {
                 badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-[#C5DB9E]/50 text-[#195618] border border-[#93A981]/60">${rol}</span>`;
@@ -337,6 +352,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td class="px-6 py-3.5">${telefono}</td>
                 <td class="px-6 py-3.5">
                     ${badgeHtml}
+                </td>
+                <td class="px-6 py-3.5 font-bold text-[#195618]">
+                    ${u.numero_socio ? '#' + u.numero_socio : '-'}
                 </td>
                 <td class="px-6 py-3.5 text-center">
                     <div class="inline-flex items-center space-x-1.5">
@@ -409,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const roleName = (rol == '1' || rol === 'Administrador') ? 'Administrador' : ((rol == '2' || rol === 'Vendedor') ? 'Vendedor' : 'Cliente');
+            const roleName = (rol == '1' || rol === 'Administrador') ? 'Administrador' : ((rol == '2' || rol === 'Socio' || rol === 'Vendedor') ? 'Socio' : 'Cliente');
 
             const payload = {
                 nombre,
@@ -419,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 contrasena: pass,
                 telefono: tel,
                 rol: roleName,
-                id_rol: parseInt(rol)
+                id_rol: (roleName === 'Administrador' ? 1 : (roleName === 'Socio' ? 2 : 3))
             };
 
             // 1.3 Petición POST a /api/usuarios (o PUT si es edición)
@@ -454,6 +472,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const userSaved = data.data || payload;
                     userSaved.contrasena = pass;
+                    if (data.numero_socio) {
+                        userSaved.numero_socio = data.numero_socio;
+                    }
                     if (!window.usuariosRegistrados) window.usuariosRegistrados = [...defaultMainUsers];
                     const idx = window.usuariosRegistrados.findIndex(u => u.id_usuario == (editId || userSaved.id_usuario));
                     if (idx !== -1) {
@@ -466,7 +487,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     await window.cargarUsuarios();
                     if (isAdmin && typeof fetchAdminMetrics === 'function') await fetchAdminMetrics();
                     if (isAdmin && typeof fetchModerationData === 'function') await fetchModerationData();
-                    alert(editId ? '✅ Usuario actualizado exitosamente.' : '✅ Usuario registrado exitosamente.');
+
+                    if (roleName === 'Socio') {
+                        const numSocioAsignado = data.numero_socio || (data.data && data.data.numero_socio) || userSaved.numero_socio || '1';
+                        alert(`Socio registrado exitosamente. Número de Socio asignado: #${numSocioAsignado}`);
+                    } else {
+                        alert(editId ? '✅ Usuario actualizado exitosamente.' : '✅ Usuario registrado exitosamente.');
+                    }
                 } else {
                     alert('Error: ' + (data.message || 'No se pudo guardar el usuario en la base de datos.'));
                 }
@@ -480,12 +507,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     contrasena: pass,
                     password: pass,
                     telefono: tel,
-                    id_rol: parseInt(rol),
+                    id_rol: (roleName === 'Administrador' ? 1 : (roleName === 'Socio' ? 2 : 3)),
                     nombre_rol: roleName,
                     rol: roleName,
                     verificado: false,
                     suspendido: false
                 };
+
+                if (roleName === 'Socio') {
+                    const maxSocio = (window.usuariosRegistrados || []).reduce((max, u) => Math.max(max, u.numero_socio || 0), 0);
+                    nuevoUsuarioLocal.numero_socio = maxSocio + 1;
+                }
+
                 if (!window.usuariosRegistrados) window.usuariosRegistrados = [...defaultMainUsers];
                 if (editId) {
                     const idx = window.usuariosRegistrados.findIndex(u => u.id_usuario == editId);
@@ -499,7 +532,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('reg_rol').selectedIndex = 0;
                 if (btnCancelEditUser) btnCancelEditUser.classList.add('hidden');
                 renderUsersInTable(window.usuariosRegistrados);
-                alert('✅ Usuario guardado exitosamente.');
+
+                if (roleName === 'Socio') {
+                    alert(`Socio registrado exitosamente. Número de Socio asignado: #${nuevoUsuarioLocal.numero_socio}`);
+                } else {
+                    alert(editId ? '✅ Usuario actualizado exitosamente.' : '✅ Usuario guardado exitosamente.');
+                }
             }
         });
     }
@@ -538,7 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 usersList.push({
                     id_usuario: 2, id_rol: 2, nombre: 'Gisela', correo: 'ar230111983@arandas.tecmm.edu.mx',
                     email: 'ar230111983@arandas.tecmm.edu.mx', contrasena: '4321', password: '4321',
-                    telefono: '3471046625', nombre_rol: 'Vendedor', rol: 'Vendedor', verificado: false, suspendido: false
+                    telefono: '3471046625', nombre_rol: 'Socio', rol: 'Socio', numero_socio: 1, verificado: false, suspendido: false
                 });
             }
 
@@ -551,6 +589,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             usersList[idx].contrasena = localU.contrasena;
                             usersList[idx].password = localU.contrasena;
                         }
+                        if (localU.numero_socio && !usersList[idx].numero_socio) {
+                            usersList[idx].numero_socio = localU.numero_socio;
+                        }
                     } else {
                         usersList.push(localU);
                     }
@@ -562,6 +603,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof poblarSelectorBloqueo === 'function') {
                 poblarSelectorBloqueo(usersList);
             }
+            if (typeof poblarSelectorOtp === 'function') {
+                poblarSelectorOtp(usersList);
+            }
         } catch (error) {
             console.error('Error cargando usuarios:', error);
             window.usuariosRegistrados = window.usuariosRegistrados || defaultMainUsers;
@@ -569,9 +613,45 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof poblarSelectorBloqueo === 'function') {
                 poblarSelectorBloqueo(window.usuariosRegistrados);
             }
+            if (typeof poblarSelectorOtp === 'function') {
+                poblarSelectorOtp(window.usuariosRegistrados);
+            }
         }
     };
     const fetchUsuariosTable = window.cargarUsuarios;
+
+    // Selector dinámico para destinatarios del código OTP WhatsApp
+    window.poblarSelectorOtp = function(users) {
+        const selectOtp = document.getElementById('otp-usuario-select');
+        const inputTel = document.getElementById('otp-telefono-input');
+        if (!selectOtp) return;
+
+        const currentVal = selectOtp.value;
+        const userList = (users && users.length > 0) ? users : (window.usuariosRegistrados || defaultMainUsers);
+
+        selectOtp.innerHTML = '<option value="">-- Seleccionar Usuario o Socio registrado --</option>';
+        userList.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id_usuario;
+            opt.dataset.telefono = u.telefono || '';
+            opt.dataset.nombre = u.nombre || 'Usuario';
+            const rolLabel = u.nombre_rol || u.rol || 'Cliente';
+            const socioTag = u.numero_socio ? ` [Socio #${u.numero_socio}]` : '';
+            opt.textContent = `${u.nombre} (${u.telefono || 'Sin tel.'}) - ${rolLabel}${socioTag}`;
+            selectOtp.appendChild(opt);
+        });
+
+        if (currentVal) {
+            selectOtp.value = currentVal;
+        }
+
+        selectOtp.onchange = () => {
+            const selectedOpt = selectOtp.options[selectOtp.selectedIndex];
+            if (selectedOpt && selectedOpt.dataset.telefono && inputTel) {
+                inputTel.value = selectedOpt.dataset.telefono.replace(/\D/g, '');
+            }
+        };
+    };
 
     window.cargarEdicionUsuario = (u) => {
         editUserIdInput.value = u.id_usuario;
@@ -579,9 +659,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('reg_correo').value = u.correo || u.email || '';
         document.getElementById('reg_password').value = u.contrasena || u.password || '';
         document.getElementById('reg_telefono').value = u.telefono || '';
-        document.getElementById('reg_rol').value = u.id_rol ? String(u.id_rol) : (u.nombre_rol === 'Administrador' ? '1' : (u.nombre_rol === 'Vendedor' ? '2' : '3'));
+        document.getElementById('reg_rol').value = u.id_rol ? String(u.id_rol) : (u.nombre_rol === 'Administrador' ? '1' : ((u.nombre_rol === 'Socio' || u.nombre_rol === 'Vendedor') ? '2' : '3'));
 
-        formUserTitle.innerHTML = '<i class="fa-solid fa-pen-to-square text-sky-500"></i><span>Editar Usuario</span>';
+        formUserTitle.innerHTML = '<i class="fa-solid fa-pen-to-square text-[#5C8754]"></i><span>Editar Usuario</span>';
         btnSubmitUser.textContent = 'Actualizar Usuario';
         btnCancelEditUser.classList.remove('hidden');
 
@@ -644,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ tipo_acceso: 'Administrador', identificador: username, password })
                 });
                 const data = await res.json();
                 if (res.ok && data.success && data.user) {
@@ -667,16 +747,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 3. FUNCIONALIDAD DE VERIFICACIÓN OTP
+    // 3. FUNCIONALIDAD DE VERIFICACIÓN OTP CON WHATSAPP (wa.me)
     // ==========================================
     const btnGenerarOtp = document.getElementById('btnGenerarOtp');
     const displayOtpCode = document.getElementById('displayOtpCode');
     const formValidarOtp = document.getElementById('formValidarOtp');
     const otpFeedback = document.getElementById('otpFeedback');
+    const btnEnviarOtpWa = document.getElementById('btnEnviarOtpWa');
 
     if (btnGenerarOtp) {
         btnGenerarOtp.addEventListener('click', async () => {
-            // 3.1 Generar dinámicamente un número aleatorio de 6 dígitos y mostrarlo en grande en pantalla
+            // Generar dinámicamente un número aleatorio de 6 dígitos
             const nuevoOtp = Math.floor(100000 + Math.random() * 900000).toString();
             if (displayOtpCode) displayOtpCode.textContent = nuevoOtp;
 
@@ -687,15 +768,51 @@ document.addEventListener('DOMContentLoaded', () => {
             const valInput = document.getElementById('val_otp_input');
             if (valInput) valInput.value = '';
 
+            // Obtener el teléfono y nombre del usuario seleccionado o del input manual
+            const selectOtp = document.getElementById('otp-usuario-select');
+            const inputTel = document.getElementById('otp-telefono-input');
+            let tel = (inputTel ? inputTel.value.trim().replace(/\D/g, '') : '');
+            let nombreDest = 'Usuario';
+            let targetUserId = currentUser ? currentUser.id_usuario : 1;
+
+            if (selectOtp && selectOtp.selectedIndex > 0) {
+                const opt = selectOtp.options[selectOtp.selectedIndex];
+                nombreDest = opt.dataset.nombre || 'Usuario';
+                targetUserId = opt.value || targetUserId;
+                if (!tel && opt.dataset.telefono) {
+                    tel = opt.dataset.telefono.replace(/\D/g, '');
+                    if (inputTel) inputTel.value = tel;
+                }
+            } else if (currentUser) {
+                nombreDest = currentUser.nombre || 'Usuario';
+                if (!tel && currentUser.telefono) {
+                    tel = String(currentUser.telefono).replace(/\D/g, '');
+                    if (inputTel) inputTel.value = tel;
+                }
+            }
+
             try {
                 await fetch('/api/otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id_usuario: currentUser ? currentUser.id_usuario : 1, codigo_otp: nuevoOtp, intentos_fallidos: 0 })
+                    body: JSON.stringify({ id_usuario: targetUserId, codigo_otp: nuevoOtp, intentos_fallidos: 0 })
                 });
                 if (typeof fetchOtpHistory === 'function') await fetchOtpHistory();
             } catch (e) {
                 console.warn('Error registrando OTP en backend:', e);
+            }
+
+            // Si hay un teléfono de 10 dígitos asociado, abre automáticamente en una pestaña nueva:
+            // https://wa.me/52<TELEFONO_10_DIGITOS>?text=Hola%20<NOMBRE>,%20tu%20código%20de%20verificación%20LocalMarket%20es:%20<CODIGO_OTP>
+            if (tel && tel.length >= 10) {
+                const cleanPhone = tel.slice(-10);
+                const waText = encodeURIComponent(`Hola ${nombreDest}, tu código de verificación LocalMarket es: ${nuevoOtp}`);
+                const waUrl = `https://wa.me/52${cleanPhone}?text=${waText}`;
+                if (btnEnviarOtpWa) {
+                    btnEnviarOtpWa.href = waUrl;
+                    btnEnviarOtpWa.classList.remove('hidden');
+                }
+                window.open(waUrl, '_blank');
             }
         });
     }
@@ -1127,7 +1244,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('detailCategoria').textContent = product.categoria_nombre || 'General';
         document.getElementById('detailPrecio').textContent = `$${parseFloat(product.precio).toFixed(2)} MXN`;
         document.getElementById('detailDescripcion').textContent = product.descripcion || 'Sin descripción';
-        document.getElementById('detailVendedor').textContent = product.vendedor_nombre || 'Vendedor LocalMarket';
+        document.getElementById('detailVendedor').textContent = product.socio_nombre || product.vendedor_nombre || 'Socio LocalMarket';
 
         const stockBadge = document.getElementById('detailStockBadge');
         const cantInput = document.getElementById('compra_cantidad');
@@ -1224,7 +1341,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 total: total,
                 direccion_entrega: direccion,
                 comprador_nombre: currentUser.nombre || 'Cliente LocalMarket',
-                comprador_telefono: currentUser.telefono || '5512345678'
+                comprador_telefono: currentUser.telefono || '5512345678',
+                numero_socio_atencion: currentUser.numero_socio || (currentUser.numero_socio_atencion || 1)
             };
 
             try {
@@ -1235,7 +1353,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    alert(`🎉 ¡Pedido generado con éxito! Folio #${data.data.id_pedido}`);
+                    const pedidoId = data.data ? data.data.id_pedido : 'Nuevo';
+                    alert(`🎉 ¡Pedido generado con éxito! Folio #${pedidoId}`);
+
+                    // Si hay enlace de WhatsApp del Socio, abrirlo para enviar el comprobante directamente
+                    if (data.whatsapp_link) {
+                        window.open(data.whatsapp_link, '_blank');
+                    } else if (currentUser && (currentUser.telefono_socio || isCliente)) {
+                        const telSocio = (currentUser.telefono_socio || '3471046625').replace(/\D/g, '');
+                        const waMsg = encodeURIComponent(`Hola ${currentUser.nombre_socio || 'Socio'}, soy ${currentUser.nombre || 'Cliente'}. Acabo de generar el pedido #${pedidoId} en LocalMarket por $${total.toFixed(2)} MXN (${cant}x ${currentSelectedProduct.titulo}).`);
+                        window.open(`https://wa.me/52${telSocio}?text=${waMsg}`, '_blank');
+                    }
+
                     await fetchCatalogo();
                     await fetchPedidos();
                     if (isAdmin) await fetchAdminMetrics();
@@ -1250,11 +1379,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // MÓDULO 6: PEDIDOS (ADMIN & VENDEDOR VEN TODO, CLIENTE VE SUS COMPRAS)
+    // MÓDULO 6: PEDIDOS (ADMIN & SOCIO GESTIONAN, CLIENTE VE SUS COMPRAS)
     // ==========================================
     window.cargarPedidos = async function cargarPedidos() {
         try {
-            const res = await fetch('/api/pedidos_ventas');
+            let url = '/api/pedidos_ventas';
+            if (isSocio && currentUser && currentUser.numero_socio) {
+                url += `?numero_socio=${currentUser.numero_socio}`;
+            }
+            const res = await fetch(url);
             const result = await res.json();
             const tbody = document.querySelector('#tablaPedidosMaster tbody');
             if (!tbody) return;
@@ -1263,12 +1396,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.success && Array.isArray(result.data) && result.data.length > 0) {
                 let orders = result.data;
 
-                // Si el rol es Cliente, ve únicamente sus pedidos; Administrador y Vendedor ven todos los pedidos de la plataforma
+                // Si el rol es Cliente, ve únicamente sus compras; Socio ve las de su numero_socio; Admin ve todas
                 if (isCliente && currentUser) {
                     orders = orders.filter(order => {
                         const matchId = currentUser.id_usuario && Number(order.id_comprador) === Number(currentUser.id_usuario);
                         const matchNombre = currentUser.nombre && order.comprador_nombre && order.comprador_nombre.toLowerCase().trim() === currentUser.nombre.toLowerCase().trim();
                         return matchId || matchNombre;
+                    });
+                } else if (isSocio && currentUser && currentUser.numero_socio) {
+                    orders = orders.filter(order => {
+                        return Number(order.numero_socio_atencion) === Number(currentUser.numero_socio);
                     });
                 }
 
@@ -1283,7 +1420,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const isCancelable = order.estado !== 'Completado' && order.estado !== 'Cancelado';
 
                         let accionesHtml = '';
-                        if (isAdmin || isVendedor) {
+                        if (isAdmin || isSocio) {
                             accionesHtml = `
                                 <div class="inline-flex items-center space-x-1.5">
                                     <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-[#88BD79]/20 text-[#195618] border border-[#88BD79] hover:bg-[#88BD79]/40 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'En camino')">
@@ -1366,7 +1503,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ==========================================
-    // MÓDULO 7: NOTIFICACIONES (ADMIN & VENDEDOR)
+    // MÓDULO 7: NOTIFICACIONES (ADMIN & SOCIO)
     // ==========================================
     const formSimularAlerta = document.getElementById('formSimularAlerta');
     if (formSimularAlerta) {
@@ -1914,7 +2051,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let roleVal = '3';
         if (u.id_rol) roleVal = String(u.id_rol);
         else if (u.nombre_rol === 'Administrador' || u.rol === 'Administrador') roleVal = '1';
-        else if (u.nombre_rol === 'Vendedor' || u.rol === 'Vendedor') roleVal = '2';
+        else if (u.nombre_rol === 'Socio' || u.rol === 'Socio' || u.nombre_rol === 'Vendedor' || u.rol === 'Vendedor') roleVal = '2';
         document.getElementById('edit_user_ctrl_rol').value = roleVal;
 
         modalEditarUserControl.classList.add('active');
@@ -1936,7 +2073,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const nombre = document.getElementById('edit_user_ctrl_nombre').value.trim();
             const correo = document.getElementById('edit_user_ctrl_correo').value.trim();
             const id_rol = document.getElementById('edit_user_ctrl_rol').value;
-            const rolName = id_rol === '1' ? 'Administrador' : (id_rol === '2' ? 'Vendedor' : 'Cliente');
+            const rolName = id_rol === '1' ? 'Administrador' : (id_rol === '2' ? 'Socio' : 'Cliente');
 
             if (!nombre || !correo) {
                 return alert('Nombre y correo son requeridos.');

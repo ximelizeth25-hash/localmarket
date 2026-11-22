@@ -99,7 +99,9 @@ async function getAllProductos(req, res, next) {
                    p.precio, COALESCE(p.costo_unitario, 0) as costo_unitario, p.stock, 
                    p.imagen_1, p.imagen_2, p.imagen_3,
                    COALESCE(c.nombre, 'General') as categoria_nombre,
-                   COALESCE(u.nombre, 'Vendedor Local') as vendedor_nombre,
+                   COALESCE(u.nombre, 'Socio Local') as vendedor_nombre,
+                   COALESCE(u.nombre, 'Socio Local') as socio_nombre,
+                   u.numero_socio,
                    COALESCE(p.estado_publicacion, 'activo') as estado_publicacion,
                    (COALESCE(p.estado_publicacion, 'activo') = 'suspendido') as moderado
             FROM PRODUCTOS p
@@ -150,7 +152,9 @@ async function getProductoById(req, res, next) {
     try {
         const query = `
             SELECT p.*, COALESCE(c.nombre, 'General') as categoria_nombre,
-                   COALESCE(u.nombre, 'Vendedor Local') as vendedor_nombre
+                   COALESCE(u.nombre, 'Socio Local') as vendedor_nombre,
+                   COALESCE(u.nombre, 'Socio Local') as socio_nombre,
+                   u.numero_socio
             FROM PRODUCTOS p
             LEFT JOIN CATEGORIAS c ON p.id_categoria = c.id_categoria
             LEFT JOIN USUARIOS u ON p.id_vendedor = u.id_usuario
@@ -216,7 +220,8 @@ async function createProducto(req, res, next) {
             imagen_2,
             imagen_3,
             categoria_nombre: categoria_nombre || 'General',
-            vendedor_nombre: 'Administrador / Vendedor',
+            vendedor_nombre: 'Administrador / Socio',
+            socio_nombre: 'Administrador / Socio',
             moderado: false,
             estado_publicacion: 'activo'
         };
