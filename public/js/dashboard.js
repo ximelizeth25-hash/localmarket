@@ -1,6 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
     
     // ==========================================
+    // 0. CARRITO DE COMPRAS GLOBAL (SESSIONSTORAGE)
+    // ==========================================
+    let carritoCompra = JSON.parse(sessionStorage.getItem('localmarket_carrito') || '[]');
+    if (!Array.isArray(carritoCompra)) carritoCompra = [];
+
+    function guardarCarrito() {
+        try {
+            sessionStorage.setItem('localmarket_carrito', JSON.stringify(carritoCompra));
+        } catch (e) {}
+    }
+
+    // ==========================================
     // 1. GESTIÓN DE SESIÓN Y CONTROL DE ACCESO (RBAC)
     // ==========================================
     let currentUser = null;
@@ -218,9 +230,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Control de visibilidad de compra (Momento 1: Al abrir la pestaña Compra)
+        // Control de visibilidad de compra (Al abrir la pestaña Compra)
         if (targetId === 'mod_detalle') {
-            if (typeof mostrarEstadoCompra === 'function') mostrarEstadoCompra();
+            if (typeof renderizarCompra === 'function') renderizarCompra();
         }
 
         try {
@@ -318,8 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (moduleId === 'mod_auth') { fetchOtpHistory(); cargarUsuarios(); }
         if (moduleId === 'mod_catalogo') fetchCatalogo();
         if (moduleId === 'mod_detalle') {
-            if (typeof mostrarEstadoCompra === 'function') mostrarEstadoCompra();
-            if (typeof renderCarrito === 'function') renderCarrito();
+            if (typeof renderizarCompra === 'function') renderizarCompra();
             if (typeof updateCompraTotal === 'function') updateCompraTotal();
         }
         if (moduleId === 'mod_pedidos') cargarPedidos();
@@ -1423,27 +1434,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!isAgotado) {
                     card.querySelector('.btn-ver-detalle').addEventListener('click', () => {
                         const prodId = p.id_producto || p.id;
-                        const stockMax = parseInt(p.stock) || 0;
-                        const precioNum = parseFloat(p.precio) || 0;
+                        const foundProd = (catalogoProductosCargados || []).find(item => (item.id_producto || item.id) === prodId) || p;
+                        const stockMax = parseInt(foundProd.stock) || 0;
+                        const precioNum = parseFloat(foundProd.precio) || 0;
 
                         const prodData = {
                             id: prodId,
                             id_producto: prodId,
-                            nombre: p.titulo || p.nombre,
-                            titulo: p.titulo || p.nombre,
-                            descripcion: p.descripcion,
+                            nombre: foundProd.titulo || foundProd.nombre,
+                            titulo: foundProd.titulo || foundProd.nombre,
+                            descripcion: foundProd.descripcion || '',
                             precio: precioNum,
                             stock: stockMax,
-                            categoria: p.categoria_nombre || p.categoria,
-                            categoria_nombre: p.categoria_nombre || p.categoria,
-                            imagen: p.imagen_1 || p.imagen,
-                            imagen_1: p.imagen_1 || p.imagen,
-                            imagen_3: p.imagen_3 || p.imagen_1 || p.imagen,
-                            socio_nombre: p.socio_nombre || p.vendedor_nombre,
-                            vendedor_nombre: p.socio_nombre || p.vendedor_nombre
+                            categoria: foundProd.categoria_nombre || foundProd.categoria || 'General',
+                            categoria_nombre: foundProd.categoria_nombre || foundProd.categoria || 'General',
+                            imagen: foundProd.imagen_1 || foundProd.imagen || '',
+                            imagen_1: foundProd.imagen_1 || foundProd.imagen || '',
+                            imagen_3: foundProd.imagen_3 || foundProd.imagen_1 || foundProd.imagen || '',
+                            socio_nombre: foundProd.socio_nombre || foundProd.vendedor_nombre || 'Socio LocalMarket',
+                            vendedor_nombre: foundProd.socio_nombre || foundProd.vendedor_nombre || 'Socio LocalMarket'
                         };
 
-                        // 1. Si el producto ya existe en carritoCompra, incrementar cantidad en +1 (sin pasar de stock)
+                        // 1. Si ya está en carritoCompra, suma +1 a su cantidad (sin rebasar su stock). Si no está, agrégalo con cantidad: 1
                         let itemEnCarrito = carritoCompra.find(i => (i.id_producto || i.id) === prodId);
                         if (itemEnCarrito) {
                             if (itemEnCarrito.cantidad < stockMax) {
@@ -1456,21 +1468,15 @@ document.addEventListener('DOMContentLoaded', () => {
                             });
                         }
 
+                        // 2. Ejecutar guardarCarrito()
                         guardarCarrito();
 
-                        // 2. Guardar producto actual como seleccionado
                         productoSeleccionadoCompra = prodData;
                         currentSelectedProduct = prodData;
-                        window.productoSeleccionadoCompra = prodData;
-                        try {
-                            sessionStorage.setItem('producto_seleccionado_compra', JSON.stringify(prodData));
-                            sessionStorage.setItem('productoSeleccionadoCompra', JSON.stringify(prodData));
-                        } catch (e) {}
 
-                        // 3. Abrir detalle de compra, mostrar estado compra y navegar
-                        openProductDetail(prodData);
-                        mostrarEstadoCompra();
+                        // 3. Navegar a la vista de Compra y llamar de inmediato a renderizarCompra()
                         switchTab('mod_detalle');
+                        renderizarCompra();
                     });
                 }
                 if (isCliente) {
@@ -1566,99 +1572,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let productoSeleccionadoCompra = null;
     let currentSelectedProduct = null;
     window.productoSeleccionadoCompra = null;
-    let carritoCompra = [];
-    try {
-        const storedCart = sessionStorage.getItem('carritoCompra');
-        carritoCompra = storedCart ? JSON.parse(storedCart) : [];
-        if (!Array.isArray(carritoCompra)) carritoCompra = [];
-        const storedProd = sessionStorage.getItem('producto_seleccionado_compra');
-        if (storedProd && carritoCompra.length > 0) {
-            productoSeleccionadoCompra = JSON.parse(storedProd);
-            currentSelectedProduct = productoSeleccionadoCompra;
-            window.productoSeleccionadoCompra = productoSeleccionadoCompra;
-        } else {
-            productoSeleccionadoCompra = null;
-            currentSelectedProduct = null;
-            window.productoSeleccionadoCompra = null;
-            sessionStorage.removeItem('producto_seleccionado_compra');
-            sessionStorage.removeItem('productoSeleccionadoCompra');
-        }
-    } catch (e) {
-        carritoCompra = [];
-        productoSeleccionadoCompra = null;
-        currentSelectedProduct = null;
-    }
-
-    function guardarCarrito() {
-        try {
-            sessionStorage.setItem('carritoCompra', JSON.stringify(carritoCompra));
-        } catch (e) {}
-    }
-
-    // Control de visibilidad de los dos contenedores de compra:
-    // Contenedor A (id="compra-vacia-card"): Tarjeta blanca con carrito verde y botón "Ir al Catálogo"
-    // Contenedor B (id="compra-detalle-card"): Tarjeta con detalle del producto y botón "Generar Pedido"
-    function mostrarEstadoCompra() {
-        const cardVacia = document.getElementById('compra-vacia-card') || document.getElementById('compraEstadoVacio');
-        const cardDetalle = document.getElementById('compra-detalle-card') || document.getElementById('compraDetalleProducto');
-
-        if (!productoSeleccionadoCompra) {
-            if (cardDetalle) {
-                cardDetalle.classList.add('hidden');
-                cardDetalle.style.display = 'none';
-            }
-            if (cardVacia) {
-                cardVacia.classList.remove('hidden');
-                cardVacia.style.display = 'block';
-            }
-        } else {
-            if (cardVacia) {
-                cardVacia.classList.add('hidden');
-                cardVacia.style.display = 'none';
-            }
-            if (cardDetalle) {
-                cardDetalle.classList.remove('hidden');
-                cardDetalle.style.display = 'block';
-            }
-        }
-    }
-    window.mostrarEstadoCompra = mostrarEstadoCompra;
-
-    function mostrarEstadoVacioCompra() {
-        productoSeleccionadoCompra = null;
-        currentSelectedProduct = null;
-        window.productoSeleccionadoCompra = null;
-        try {
-            sessionStorage.removeItem('producto_seleccionado_compra');
-            sessionStorage.removeItem('productoSeleccionadoCompra');
-            localStorage.removeItem('producto_seleccionado_compra');
-            localStorage.removeItem('productoSeleccionadoCompra');
-        } catch (e) {}
-
-        const formCompraDirecta = document.getElementById('formCompraDirecta');
-        if (formCompraDirecta) formCompraDirecta.reset();
-        const detailMainImg = document.getElementById('detailMainImg');
-        if (detailMainImg) detailMainImg.src = '';
-        const detailThumb1 = document.getElementById('detailThumb1');
-        if (detailThumb1) detailThumb1.src = '';
-        const detailThumb3 = document.getElementById('detailThumb3');
-        if (detailThumb3) detailThumb3.src = '';
-        const detailTitulo = document.getElementById('detailTitulo');
-        if (detailTitulo) detailTitulo.textContent = '';
-        const detailPrecio = document.getElementById('detailPrecio');
-        if (detailPrecio) detailPrecio.textContent = '';
-        const detailDescripcion = document.getElementById('detailDescripcion');
-        if (detailDescripcion) detailDescripcion.textContent = '';
-        const detailCategoria = document.getElementById('detailCategoria');
-        if (detailCategoria) detailCategoria.textContent = '';
-
-        mostrarEstadoCompra();
-    }
-    window.mostrarEstadoVacioCompra = mostrarEstadoVacioCompra;
-
-    function mostrarDetalleCompra() {
-        mostrarEstadoCompra();
-    }
 
     // Inicializar listener en botón Ir al Catálogo del estado vacío
     const btnIrAlCatalogoGlobal = document.getElementById('btnIrAlCatalogo');
@@ -1670,36 +1583,104 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderCarrito() {
+    const btnVolverAlCatalogoGlobal = document.getElementById('btnVolverAlCatalogo');
+    if (btnVolverAlCatalogoGlobal && !btnVolverAlCatalogoGlobal._hasReturnListener) {
+        btnVolverAlCatalogoGlobal._hasReturnListener = true;
+        btnVolverAlCatalogoGlobal.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchTab('mod_catalogo');
+        });
+    }
+
+    // 3. RENDERIZAR EL CARRITO EN LA VISTA DE COMPRA
+    function renderizarCompra() {
+        const cardVacia = document.getElementById('compra-vacia-card') || document.getElementById('compraEstadoVacio');
+        const cardDetalle = document.getElementById('compra-detalle-card') || document.getElementById('compraDetalleProducto');
         const container = document.getElementById('carritoItemsContainer');
         const countBadge = document.getElementById('carritoItemsCountBadge');
         const subtotalText = document.getElementById('carritoSubtotalText');
         const totalText = document.getElementById('carritoTotalText');
-        if (!container) return;
+        const totalPreview = document.getElementById('compra_total_preview');
+        const cantInput = document.getElementById('compra_cantidad');
 
-        // Si el carrito está vacío y no hay producto seleccionado
-        if (carritoCompra.length === 0) {
-            container.innerHTML = `
-                <div class="p-6 text-center text-xs text-slate-500 bg-[#C5DB9E]/10 rounded-xl border border-dashed border-[#93A981]/40">
-                    <i class="fa-solid fa-basket-shopping text-2xl text-[#93A981] mb-2"></i>
-                    <p>Tu carrito está vacío. Agrega productos desde el Catálogo.</p>
-                </div>
-            `;
+        // 1. Si carritoCompra.length === 0:
+        // Oculta el contenedor del carrito/formulario activo y muestra únicamente la tarjeta blanca vacía con el ícono del carrito verde
+        if (!carritoCompra || carritoCompra.length === 0) {
+            if (cardDetalle) {
+                cardDetalle.classList.add('hidden');
+                cardDetalle.style.display = 'none';
+            }
+            if (cardVacia) {
+                cardVacia.classList.remove('hidden');
+                cardVacia.style.display = 'block';
+            }
+            if (container) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-xs text-slate-500 bg-[#C5DB9E]/10 rounded-xl border border-dashed border-[#93A981]/40">
+                        <i class="fa-solid fa-basket-shopping text-2xl text-[#93A981] mb-2"></i>
+                        <p>Tu carrito está vacío. Agrega productos desde el Catálogo.</p>
+                    </div>
+                `;
+            }
             if (countBadge) countBadge.textContent = '0 productos';
             if (subtotalText) subtotalText.textContent = '$0.00 MXN';
             if (totalText) totalText.textContent = '$0.00 MXN';
-            const totalPreview = document.getElementById('compra_total_preview');
             if (totalPreview) totalPreview.value = '$0.00 MXN';
-
-            if (!productoSeleccionadoCompra) {
-                mostrarEstadoCompra();
-            }
+            if (cantInput) cantInput.value = '1';
             return;
         }
 
-        // Si hay artículos, asegurar que el panel esté visible
-        mostrarEstadoCompra();
+        // 2. Si carritoCompra.length > 0:
+        // Oculta la tarjeta blanca vacía, muestra el panel activo de Compra y dibuja la lista de todos los productos agregados al carrito
+        if (cardVacia) {
+            cardVacia.classList.add('hidden');
+            cardVacia.style.display = 'none';
+        }
+        if (cardDetalle) {
+            cardDetalle.classList.remove('hidden');
+            cardDetalle.style.display = 'block';
+        }
 
+        // Sincronizar producto activo para el detalle del encabezado
+        let activeItem = productoSeleccionadoCompra;
+        if (!activeItem || !carritoCompra.some(i => (i.id || i.id_producto) === (activeItem.id || activeItem.id_producto))) {
+            activeItem = carritoCompra[carritoCompra.length - 1];
+            productoSeleccionadoCompra = activeItem;
+            currentSelectedProduct = activeItem;
+        }
+
+        if (activeItem) {
+            const tituloEl = document.getElementById('detailTitulo');
+            if (tituloEl) tituloEl.textContent = activeItem.titulo || activeItem.nombre || 'Producto';
+
+            const catEl = document.getElementById('detailCategoria');
+            if (catEl) catEl.textContent = activeItem.categoria_nombre || activeItem.categoria || 'General';
+
+            const precioEl = document.getElementById('detailPrecio');
+            if (precioEl) precioEl.textContent = `$${parseFloat(activeItem.precio || 0).toFixed(2)} MXN`;
+
+            const descEl = document.getElementById('detailDescripcion');
+            if (descEl) descEl.textContent = activeItem.descripcion || 'Sin descripción';
+
+            const vendEl = document.getElementById('detailVendedor');
+            if (vendEl) vendEl.textContent = activeItem.socio_nombre || activeItem.vendedor_nombre || 'Socio LocalMarket';
+
+            const stockBadge = document.getElementById('detailStockBadge');
+            const stockNum = parseInt(activeItem.stock) || 0;
+            if (stockBadge) {
+                stockBadge.textContent = stockNum > 0 ? `${stockNum} disponibles` : 'Agotado';
+            }
+
+            const mainImg = document.getElementById('detailMainImg');
+            const thumb1 = document.getElementById('detailThumb1');
+            const thumb3 = document.getElementById('detailThumb3');
+            const imgUrl = activeItem.imagen_1 || activeItem.imagen || 'https://placehold.co/400x400?text=Producto';
+            if (mainImg) mainImg.src = imgUrl;
+            if (thumb1) thumb1.src = imgUrl;
+            if (thumb3) thumb3.src = activeItem.imagen_3 || imgUrl;
+        }
+
+        if (!container) return;
         container.innerHTML = '';
         let totalGeneral = 0;
         let totalCantidad = 0;
@@ -1750,46 +1731,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            // Evento: Clic en el nombre/imagen para seleccionarlo como producto en vista de detalle
+            // Clic en el nombre/imagen para seleccionarlo como producto en vista de detalle
             itemRow.querySelector('.ver-detalle-item').addEventListener('click', () => {
-                openProductDetail(item);
+                productoSeleccionadoCompra = item;
+                currentSelectedProduct = item;
+                renderizarCompra();
             });
 
-            // Evento: Botón Menos (-)
+            // Botón Menos (-)
             itemRow.querySelector('.btn-restar-cant').addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (item.cantidad > 1) {
                     item.cantidad--;
-                    if (currentSelectedProduct && ((currentSelectedProduct.id || currentSelectedProduct.id_producto) === (item.id || item.id_producto))) {
-                        const cantInput = document.getElementById('compra_cantidad');
-                        if (cantInput) cantInput.value = item.cantidad;
-                    }
                     guardarCarrito();
-                    renderCarrito();
-                    updateCompraTotal();
+                    renderizarCompra();
                 } else {
                     eliminarItemCarrito(index);
                 }
             });
 
-            // Evento: Botón Más (+)
+            // Botón Más (+)
             itemRow.querySelector('.btn-sumar-cant').addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (item.cantidad < itemStock) {
                     item.cantidad++;
-                    if (currentSelectedProduct && ((currentSelectedProduct.id || currentSelectedProduct.id_producto) === (item.id || item.id_producto))) {
-                        const cantInput = document.getElementById('compra_cantidad');
-                        if (cantInput) cantInput.value = item.cantidad;
-                    }
                     guardarCarrito();
-                    renderCarrito();
-                    updateCompraTotal();
+                    renderizarCompra();
                 } else {
                     alert(`⚠️ Máximo de existencias alcanzado (${itemStock} unidades disponibles).`);
                 }
             });
 
-            // Evento: Botón Quitar (Trash)
+            // Botón Quitar (Trash)
             itemRow.querySelector('.btn-quitar-item').addEventListener('click', (e) => {
                 e.stopPropagation();
                 eliminarItemCarrito(index);
@@ -1801,37 +1774,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (countBadge) countBadge.textContent = `${totalCantidad} ${totalCantidad === 1 ? 'producto' : 'productos'}`;
         if (subtotalText) subtotalText.textContent = `$${totalGeneral.toFixed(2)} MXN`;
         if (totalText) totalText.textContent = `$${totalGeneral.toFixed(2)} MXN`;
-        const totalPreview = document.getElementById('compra_total_preview');
         if (totalPreview) totalPreview.value = `$${totalGeneral.toFixed(2)} MXN`;
+        if (cantInput) cantInput.value = totalCantidad;
     }
+    window.renderizarCompra = renderizarCompra;
+    window.renderCarrito = renderizarCompra;
+    window.mostrarEstadoCompra = renderizarCompra;
 
     function eliminarItemCarrito(index) {
-        const eliminado = carritoCompra[index];
         carritoCompra.splice(index, 1);
         guardarCarrito();
 
         if (carritoCompra.length === 0) {
-            mostrarEstadoVacioCompra();
-        } else {
-            if (productoSeleccionadoCompra && eliminado && ((productoSeleccionadoCompra.id || productoSeleccionadoCompra.id_producto) === (eliminado.id || eliminado.id_producto))) {
-                openProductDetail(carritoCompra[0]);
-            }
+            productoSeleccionadoCompra = null;
+            currentSelectedProduct = null;
+        } else if (productoSeleccionadoCompra && !carritoCompra.some(i => (i.id || i.id_producto) === (productoSeleccionadoCompra.id || productoSeleccionadoCompra.id_producto))) {
+            productoSeleccionadoCompra = carritoCompra[0];
+            currentSelectedProduct = carritoCompra[0];
         }
-        renderCarrito();
-        updateCompraTotal();
+        renderizarCompra();
     }
 
     function openProductDetail(product) {
         productoSeleccionadoCompra = product;
         currentSelectedProduct = product;
-        window.productoSeleccionadoCompra = product;
-        try {
-            sessionStorage.setItem('producto_seleccionado_compra', JSON.stringify(product));
-            sessionStorage.setItem('productoSeleccionadoCompra', JSON.stringify(product));
-        } catch (e) {}
-
-        // Mostrar panel de compra según estado
-        mostrarEstadoCompra();
+        renderizarCompra();
 
         const btnIrAlCatalogo = document.getElementById('btnIrAlCatalogo');
         if (btnIrAlCatalogo && !btnIrAlCatalogo._hasReturnListener) {
@@ -2021,17 +1988,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         window.open(`https://wa.me/52${telSocio}?text=${waMsg}`, '_blank');
                     }
 
-                    // Momento 3: Inmediatamente después de que se confirme y guarde un pedido en "Generar Pedido (Pago Contra Entrega)"
-                    // 1. Poner productoSeleccionadoCompra = null y vaciar carrito/storage
+                    // ÚNICAMENTE cuando se confirme con éxito el botón "Generar Pedido (Pago Contra Entrega)",
+                    // vacía carritoCompra = [], ejecuta guardarCarrito() y llama a renderizarCompra() para que vuelva a aparecer la tarjeta limpia con el botón "Ir al Catálogo".
+                    carritoCompra = [];
                     productoSeleccionadoCompra = null;
                     currentSelectedProduct = null;
                     window.productoSeleccionadoCompra = null;
-                    carritoCompra = [];
                     guardarCarrito();
                     try {
+                        sessionStorage.removeItem('localmarket_carrito');
                         sessionStorage.removeItem('carritoCompra');
                         sessionStorage.removeItem('producto_seleccionado_compra');
                         sessionStorage.removeItem('productoSeleccionadoCompra');
+                        localStorage.removeItem('localmarket_carrito');
                         localStorage.removeItem('carritoCompra');
                         localStorage.removeItem('producto_seleccionado_compra');
                         localStorage.removeItem('productoSeleccionadoCompra');
@@ -2055,11 +2024,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     const detailCategoria = document.getElementById('detailCategoria');
                     if (detailCategoria) detailCategoria.textContent = '';
 
-                    // 2 y 3. Ocultar detalle de producto y mostrar tarjeta original de estado vacío
-                    mostrarEstadoCompra();
-                    renderCarrito();
-
-                    // Permanecer en la vista de Compra con la tarjeta de carrito vacío
+                    // Volver a aparecer la tarjeta limpia con el botón "Ir al Catálogo"
+                    renderizarCompra();
                     switchTab('mod_detalle');
 
                     await fetchCatalogo();
