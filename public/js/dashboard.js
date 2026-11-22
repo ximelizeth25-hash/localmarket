@@ -2187,8 +2187,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const opt = document.createElement('option');
             opt.value = u.id_usuario;
             const rolLabel = u.nombre_rol || u.rol || 'Cliente';
-            const estadoLabel = u.estado_cuenta === 'bloqueado' ? ' [BLOQUEADA]' : (u.suspendido || u.estado_cuenta === 'suspendido' ? ' [SUSPENDIDO]' : '');
-            opt.textContent = `${u.nombre} (${u.correo || u.email || 'sin-correo'}) - ${rolLabel}${estadoLabel}`;
+            opt.textContent = `${u.nombre} - ${rolLabel}`;
             select.appendChild(opt);
         });
 
