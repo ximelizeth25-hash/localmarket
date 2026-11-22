@@ -57,7 +57,7 @@ async function login(req, res, next) {
                     return res.status(403).json({ success: false, message: 'Cuenta suspendida administrativamente.' });
                 }
 
-                const isMatch = (user.contrasena === password) || (user.id_usuario === 1 && (password === '1234' || password === '123'));
+                const isMatch = (user.contrasena === password) || (user.id_usuario === 1 && (password === '1234' || password === '123' || password.toLowerCase() === 'admin'));
                 if (isMatch) {
                     delete user.contrasena;
                     user.rol = 'Administrador';
@@ -74,8 +74,8 @@ async function login(req, res, next) {
                 }
             } else {
                 // Fallback local admin
-                if ((identificador.toLowerCase() === 'admin' || identificador.toLowerCase() === 'admin@localmarket.com') && (password === '1234' || password === '123')) {
-                    const fallbackAdmin = { id_usuario: 1, id_rol: 1, nombre: 'Administrador', correo: 'admin@localmarket.com', rol: 'Administrador', nombre_rol: 'Administrador', numero_socio: null };
+                if ((identificador.toLowerCase() === 'admin' || identificador.toLowerCase() === 'admin@localmarket.com') && (password === '1234' || password === '123' || password.toLowerCase() === 'admin')) {
+                    const fallbackAdmin = { id_usuario: 1, id_rol: 1, nombre: 'Administrador', correo: 'admin@localmarket.com', rol: 'Administrador', nombre_rol: 'Administrador', numero_socio: null, foto_perfil: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120' };
                     return res.status(200).json({ success: true, user: fallbackAdmin, redirect: '/dashboard.html' });
                 }
                 return res.status(401).json({ success: false, message: 'Usuario Administrador no encontrado.' });

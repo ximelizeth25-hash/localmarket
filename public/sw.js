@@ -5,7 +5,7 @@
  * Network-First for HTML navigation & API with offline fallback.
  */
 
-const CACHE_VERSION = 'localmarket-v7';
+const CACHE_VERSION = 'localmarket-v8';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 

@@ -166,6 +166,110 @@ async function createUsuario(req, res, next) {
     }
 }
 
+async function getPerfil(req, res, next) {
+    const id = parseInt(req.query.id || req.params.id || 1);
+    try {
+        const query = `
+            SELECT u.id_usuario, u.id_rol, u.nombre, u.correo, u.telefono, u.foto_perfil, u.numero_socio, u.estado_cuenta,
+                   COALESCE(r.nombre_rol, 'Administrador') as nombre_rol
+            FROM USUARIOS u
+            LEFT JOIN ROLES r ON u.id_rol = r.id_rol
+            WHERE u.id_usuario = $1
+        `;
+        const result = await db.query(query, [id]);
+        if (result.rows.length > 0) {
+            const user = result.rows[0];
+            user.rol = user.nombre_rol;
+            return res.status(200).json({ success: true, data: user });
+        }
+        const user = fallbackUsers.find(u => u.id_usuario === id) || fallbackUsers[0];
+        return res.status(200).json({ success: true, data: user });
+    } catch (err) {
+        console.warn('DB Fallback en getPerfil:', err.message);
+        const user = fallbackUsers.find(u => u.id_usuario === id) || fallbackUsers[0];
+        return res.status(200).json({ success: true, data: user });
+    }
+}
+
+async function updatePerfil(req, res, next) {
+    let { id_usuario, nombre, correo, contrasena, password, telefono, foto_perfil } = req.body;
+    const id = parseInt(id_usuario) || 1;
+    nombre = (nombre || '').trim();
+    correo = (correo || '').trim();
+    telefono = (telefono || '').trim();
+    const newPass = (contrasena || password || '').trim();
+
+    try {
+        let updateSql = 'UPDATE USUARIOS SET ';
+        const updates = [];
+        const params = [];
+        let idx = 1;
+
+        if (nombre) {
+            updates.push(`nombre = $${idx++}`);
+            params.push(nombre);
+        }
+        if (correo) {
+            updates.push(`correo = $${idx++}`);
+            params.push(correo);
+        }
+        if (newPass) {
+            updates.push(`contrasena = $${idx++}`);
+            params.push(newPass);
+        }
+        if (telefono) {
+            updates.push(`telefono = $${idx++}`);
+            params.push(telefono);
+        }
+        if (foto_perfil && foto_perfil.trim()) {
+            updates.push(`foto_perfil = $${idx++}`);
+            params.push(foto_perfil);
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({ success: false, message: 'No hay campos para actualizar.' });
+        }
+
+        updateSql += updates.join(', ') + ` WHERE id_usuario = $${idx++} RETURNING id_usuario, id_rol, nombre, correo, telefono, foto_perfil, numero_socio, estado_cuenta`;
+        params.push(id);
+
+        const result = await db.query(updateSql, params);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Usuario no encontrado en la base de datos.' });
+        }
+
+        const updatedUser = result.rows[0];
+        const fbIndex = fallbackUsers.findIndex(u => u.id_usuario === id);
+        if (fbIndex !== -1) {
+            Object.assign(fallbackUsers[fbIndex], updatedUser);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Perfil y foto guardados permanentemente.',
+            data: updatedUser
+        });
+    } catch (err) {
+        console.warn('DB Fallback en updatePerfil:', err.message);
+        let user = fallbackUsers.find(u => u.id_usuario === id);
+        if (!user) {
+            user = { id_usuario: id, nombre, correo, foto_perfil };
+            fallbackUsers.push(user);
+        } else {
+            if (nombre) user.nombre = nombre;
+            if (correo) user.correo = correo;
+            if (foto_perfil && foto_perfil.trim()) user.foto_perfil = foto_perfil;
+            if (newPass) user.contrasena = newPass;
+            if (telefono) user.telefono = telefono;
+        }
+        return res.status(200).json({
+            success: true,
+            message: 'Perfil actualizado exitosamente (Modo sincronizado).',
+            data: user
+        });
+    }
+}
+
 async function updateUsuario(req, res, next) {
     const id = parseInt(req.params.id);
     let { nombre, correo, email, id_rol, rol, telefono, contrasena, password } = req.body;
@@ -273,6 +377,8 @@ module.exports = {
     getAllUsuarios,
     createUsuario,
     updateUsuario,
+    getPerfil,
+    updatePerfil,
     suspenderUsuario,
     deleteUsuario,
     getSiguienteNumeroSocio,

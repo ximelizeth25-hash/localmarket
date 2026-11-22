@@ -20,6 +20,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const isCliente = !isAdmin && !isSocio;
     const userRoleKey = isAdmin ? 'admin' : (isSocio ? 'socio' : 'cliente');
 
+    // Llave independiente en localStorage para blindaje permanente de avatar
+    const userProfileId = currentUser.id_usuario || (isAdmin ? 1 : (isSocio ? 2 : 9));
+    const avatarKey = `localmarket_avatar_${userProfileId}`;
+    const cachedAvatar = localStorage.getItem(avatarKey);
+
+    if (cachedAvatar && (!currentUser.foto_perfil || currentUser.foto_perfil.includes('unsplash.com'))) {
+        currentUser.foto_perfil = cachedAvatar;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } else if (currentUser.foto_perfil && !cachedAvatar) {
+        localStorage.setItem(avatarKey, currentUser.foto_perfil);
+    }
+
+    // Sincronización transparente con PostgreSQL para foto de perfil
+    fetch(`/api/usuarios/perfil?id=${userProfileId}`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.data && res.data.foto_perfil) {
+                const dbFoto = res.data.foto_perfil;
+                currentUser.foto_perfil = dbFoto;
+                localStorage.setItem(avatarKey, dbFoto);
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                if (window.renderUserProfile) window.renderUserProfile();
+            }
+        })
+        .catch(() => {});
+
     // Función para renderizar los datos del usuario activo en sidebar y módulo Perfil
     window.renderUserProfile = function() {
         const sidebarUserName = document.getElementById('sidebarUserName');
@@ -43,17 +69,17 @@ document.addEventListener('DOMContentLoaded', () => {
             roleCleanName = currentUser.numero_socio ? `Cliente del Socio #${currentUser.numero_socio}` : 'Cliente';
         }
 
-        const photoUrl = currentUser.foto_perfil || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160';
+        const photoUrl = currentUser.foto_perfil || localStorage.getItem(avatarKey) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160';
 
         // Actualizar pie del sidebar (SIN prefijo "ROL:")
         if (sidebarUserName) sidebarUserName.textContent = name;
         if (sidebarUserRole) sidebarUserRole.textContent = roleCleanName;
-        if (sidebarAvatar && currentUser.foto_perfil) sidebarAvatar.src = photoUrl;
+        if (sidebarAvatar) sidebarAvatar.src = photoUrl;
 
         // Actualizar módulo Perfil con los datos reales de la sesión
         if (perfilDisplayName) perfilDisplayName.textContent = name;
         if (perfilDisplayEmail) perfilDisplayEmail.textContent = email;
-        if (perfilAvatarPreview && currentUser.foto_perfil) perfilAvatarPreview.src = photoUrl;
+        if (perfilAvatarPreview) perfilAvatarPreview.src = photoUrl;
         if (perfNombre) perfNombre.value = name;
         if (perfCorreo) perfCorreo.value = email;
     };
@@ -943,8 +969,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const file = e.target.files[0];
             if (file) {
                 currentAvatarBase64 = await fileToBase64(file);
-                if (perfilAvatarPreview) perfilAvatarPreview.src = currentAvatarBase64;
-                if (sidebarAvatar) sidebarAvatar.src = currentAvatarBase64;
+                if (currentAvatarBase64) {
+                    localStorage.setItem(avatarKey, currentAvatarBase64);
+                    currentUser.foto_perfil = currentAvatarBase64;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    if (perfilAvatarPreview) perfilAvatarPreview.src = currentAvatarBase64;
+                    const sidebarAvatar = document.getElementById('sidebarAvatar');
+                    if (sidebarAvatar) sidebarAvatar.src = currentAvatarBase64;
+                }
             }
         });
     }
@@ -962,12 +994,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return alert('Las contraseñas no coinciden.');
             }
 
+            const finalAvatar = currentAvatarBase64 || currentUser.foto_perfil || localStorage.getItem(avatarKey);
+
             const payload = {
-                id_usuario: currentUser.id_usuario || 1,
+                id_usuario: currentUser.id_usuario || (isAdmin ? 1 : 2),
                 nombre,
                 correo,
                 contrasena: pass,
-                foto_perfil: currentAvatarBase64 || currentUser.foto_perfil
+                foto_perfil: finalAvatar
             };
 
             try {
@@ -981,14 +1015,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('✅ Perfil actualizado correctamente.');
                     currentUser.nombre = nombre;
                     currentUser.correo = correo;
-                    if (currentAvatarBase64) currentUser.foto_perfil = currentAvatarBase64;
+                    if (finalAvatar) {
+                        currentUser.foto_perfil = finalAvatar;
+                        localStorage.setItem(avatarKey, finalAvatar);
+                    }
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     renderUserProfile();
                 } else {
                     alert('Error: ' + (data.message || 'No se pudo actualizar el perfil.'));
                 }
             } catch (err) {
-                alert('Error al actualizar perfil.');
+                // Modo resiliente offline
+                if (finalAvatar) {
+                    currentUser.foto_perfil = finalAvatar;
+                    localStorage.setItem(avatarKey, finalAvatar);
+                }
+                currentUser.nombre = nombre;
+                currentUser.correo = correo;
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                renderUserProfile();
+                alert('✅ Perfil guardado localmente en este dispositivo.');
             }
         });
     }

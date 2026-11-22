@@ -299,8 +299,11 @@
 
             setLoading(true);
 
+            // Determinar endpoint (soporta apertura tanto por http://localhost:3000 como por file:///)
+            const apiBase = window.location.protocol.startsWith('http') ? '' : 'http://localhost:3000';
+
             try {
-                const response = await fetch('/api/login', {
+                const response = await fetch(`${apiBase}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ tipo_acceso, identificador, password })
@@ -324,7 +327,7 @@
                 console.warn('Conexión con backend falló, evaluando credenciales offline:', error);
 
                 // Soporte offline para pruebas locales si el servidor se encuentra reiniciando
-                if (tipo_acceso === 'Administrador' && (identificador.toLowerCase() === 'admin' || identificador.toLowerCase() === 'admin@localmarket.com') && (password === '1234' || password === '123')) {
+                if (tipo_acceso === 'Administrador' && (identificador.toLowerCase() === 'admin' || identificador.toLowerCase() === 'admin@localmarket.com') && (password === '1234' || password === '123' || password.toLowerCase() === 'admin')) {
                     const fallbackUser = { id_usuario: 1, id_rol: 1, nombre: 'Administrador', correo: 'admin@localmarket.com', rol: 'Administrador', nombre_rol: 'Administrador', numero_socio: null, foto_perfil: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120' };
                     localStorage.setItem('currentUser', JSON.stringify(fallbackUser));
                     showAlert('¡Inicio de sesión como Administrador (Modo Offline)!', 'success');

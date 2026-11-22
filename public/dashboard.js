@@ -14,11 +14,37 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUser = { nombre: 'Administrador', nombre_rol: 'Administrador' };
     }
 
-    const roleString = (currentUser.nombre_rol || 'Cliente').trim().toLowerCase();
+    const roleString = (currentUser.nombre_rol || currentUser.rol || 'Cliente').trim().toLowerCase();
     const isAdmin = roleString.includes('admin') || roleString.includes('administrador');
-    const isVendedor = !isAdmin && roleString.includes('vendedor');
-    const isCliente = !isAdmin && !isVendedor;
-    const userRoleKey = isAdmin ? 'admin' : (isVendedor ? 'vendedor' : 'cliente');
+    const isSocio = !isAdmin && (roleString.includes('socio') || roleString.includes('vendedor'));
+    const isCliente = !isAdmin && !isSocio;
+    const userRoleKey = isAdmin ? 'admin' : (isSocio ? 'socio' : 'cliente');
+
+    // Llave independiente en localStorage para blindaje permanente de avatar
+    const userProfileId = currentUser.id_usuario || (isAdmin ? 1 : (isSocio ? 2 : 9));
+    const avatarKey = `localmarket_avatar_${userProfileId}`;
+    const cachedAvatar = localStorage.getItem(avatarKey);
+
+    if (cachedAvatar && (!currentUser.foto_perfil || currentUser.foto_perfil.includes('unsplash.com'))) {
+        currentUser.foto_perfil = cachedAvatar;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } else if (currentUser.foto_perfil && !cachedAvatar) {
+        localStorage.setItem(avatarKey, currentUser.foto_perfil);
+    }
+
+    // Sincronización transparente con PostgreSQL para foto de perfil
+    fetch(`/api/usuarios/perfil?id=${userProfileId}`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.success && res.data && res.data.foto_perfil) {
+                const dbFoto = res.data.foto_perfil;
+                currentUser.foto_perfil = dbFoto;
+                localStorage.setItem(avatarKey, dbFoto);
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                if (window.renderUserProfile) window.renderUserProfile();
+            }
+        })
+        .catch(() => {});
 
     // Función para renderizar los datos del usuario activo en sidebar y módulo Perfil
     window.renderUserProfile = function() {
@@ -33,18 +59,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const name = currentUser.nombre || 'Usuario';
         const email = currentUser.correo || 'correo@localmarket.com';
-        const roleCleanName = currentUser.nombre_rol || (isAdmin ? 'Administrador' : (isVendedor ? 'Vendedor' : 'Cliente'));
-        const photoUrl = currentUser.foto_perfil || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160';
+        
+        let roleCleanName = 'Cliente';
+        if (isAdmin) {
+            roleCleanName = 'Administrador';
+        } else if (isSocio) {
+            roleCleanName = `Socio #${currentUser.numero_socio || 1}`;
+        } else {
+            roleCleanName = currentUser.numero_socio ? `Cliente del Socio #${currentUser.numero_socio}` : 'Cliente';
+        }
+
+        const photoUrl = currentUser.foto_perfil || localStorage.getItem(avatarKey) || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=160';
 
         // Actualizar pie del sidebar (SIN prefijo "ROL:")
         if (sidebarUserName) sidebarUserName.textContent = name;
         if (sidebarUserRole) sidebarUserRole.textContent = roleCleanName;
-        if (sidebarAvatar && currentUser.foto_perfil) sidebarAvatar.src = photoUrl;
+        if (sidebarAvatar) sidebarAvatar.src = photoUrl;
 
         // Actualizar módulo Perfil con los datos reales de la sesión
         if (perfilDisplayName) perfilDisplayName.textContent = name;
         if (perfilDisplayEmail) perfilDisplayEmail.textContent = email;
-        if (perfilAvatarPreview && currentUser.foto_perfil) perfilAvatarPreview.src = photoUrl;
+        if (perfilAvatarPreview) perfilAvatarPreview.src = photoUrl;
         if (perfNombre) perfNombre.value = name;
         if (perfCorreo) perfCorreo.value = email;
     };
@@ -77,10 +112,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aplicar visibilidad granular de pestañas según el rol
     function applyRoleRestrictions() {
         tabs.forEach(tab => {
-            const rawRoles = tab.getAttribute('data-roles') || 'admin,vendedor,cliente';
-            const allowedRoles = rawRoles.split(',').map(r => r.trim());
+            const rawRoles = tab.getAttribute('data-roles') || 'admin,socio,cliente';
+            const allowedRoles = rawRoles.split(',').map(r => r.trim().toLowerCase());
             
-            if (!allowedRoles.includes(userRoleKey)) {
+            const isAllowed = allowedRoles.includes(userRoleKey) || 
+                              (userRoleKey === 'socio' && allowedRoles.includes('vendedor'));
+
+            if (!isAllowed) {
                 tab.classList.add('hidden');
                 tab.style.display = 'none';
             } else {
@@ -109,10 +147,13 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.addEventListener('click', (e) => {
             e.preventDefault();
             const targetId = tab.getAttribute('data-target');
-            const rawRoles = tab.getAttribute('data-roles') || 'admin,vendedor,cliente';
-            const allowedRoles = rawRoles.split(',').map(r => r.trim());
+            const rawRoles = tab.getAttribute('data-roles') || 'admin,socio,cliente';
+            const allowedRoles = rawRoles.split(',').map(r => r.trim().toLowerCase());
 
-            if (!allowedRoles.includes(userRoleKey)) {
+            const isAllowed = allowedRoles.includes(userRoleKey) || 
+                              (userRoleKey === 'socio' && allowedRoles.includes('vendedor'));
+
+            if (!isAllowed) {
                 showAccessDenied();
                 return;
             }
@@ -124,8 +165,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let homeTab = 'mod_auth';
         if (isCliente) {
             homeTab = 'mod_catalogo';
-        } else if (isVendedor) {
-            homeTab = 'mod_publicar';
+        } else if (isSocio) {
+            homeTab = 'mod_catalogo';
         } else {
             homeTab = 'mod_auth';
         }
@@ -140,11 +181,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tabs.forEach(t => {
             if (t.getAttribute('data-target') === targetId) {
-                t.classList.add('active', 'bg-slate-800', 'text-white');
-                t.classList.remove('text-slate-300');
+                t.classList.add('active', 'bg-[#195618]', 'text-white', 'border-l-4', 'border-[#88BD79]');
+                t.classList.remove('text-[#A8C1A0]', 'text-slate-300');
             } else {
-                t.classList.remove('active', 'bg-slate-800', 'text-white');
-                t.classList.add('text-slate-300');
+                t.classList.remove('active', 'bg-[#195618]', 'border-l-4', 'border-[#88BD79]', 'bg-slate-800');
+                t.classList.add('text-[#A8C1A0]');
             }
         });
 
@@ -240,7 +281,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadModuleData(moduleId) {
         if (moduleId === 'mod_auth') { fetchOtpHistory(); cargarUsuarios(); }
         if (moduleId === 'mod_catalogo') fetchCatalogo();
-        if (moduleId === 'mod_detalle') renderCompraView();
         if (moduleId === 'mod_pedidos') cargarPedidos();
         if (moduleId === 'mod_admin' && isAdmin) fetchAdminMetrics();
         if (moduleId === 'mod_moderacion' && isAdmin) fetchModerationData();
@@ -257,8 +297,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnCancelEditUser = document.getElementById('btnCancelEditUser');
 
     const defaultMainUsers = [
-        { id_usuario: 1, id_rol: 1, nombre: 'Administrador', correo: 'admin@localmarket.com', email: 'admin@localmarket.com', contrasena: '1234', password: '1234', telefono: '5512345678', nombre_rol: 'Administrador', rol: 'Administrador', verificado: true, suspendido: false },
-        { id_usuario: 2, id_rol: 2, nombre: 'Gisela', correo: 'ar230111983@arandas.tecmm.edu.mx', email: 'ar230111983@arandas.tecmm.edu.mx', contrasena: '4321', password: '4321', telefono: '3471046625', nombre_rol: 'Vendedor', rol: 'Vendedor', verificado: false, suspendido: false }
+        { id_usuario: 1, id_rol: 1, nombre: 'Administrador', correo: 'admin@localmarket.com', email: 'admin@localmarket.com', contrasena: '1234', password: '1234', telefono: '5512345678', nombre_rol: 'Administrador', rol: 'Administrador', numero_socio: null, verificado: true, suspendido: false },
+        { id_usuario: 2, id_rol: 2, nombre: 'Gisela', correo: 'ar230111983@arandas.tecmm.edu.mx', email: 'ar230111983@arandas.tecmm.edu.mx', contrasena: '4321', password: '4321', telefono: '3471046625', nombre_rol: 'Socio', rol: 'Socio', numero_socio: 1, verificado: false, suspendido: false }
     ];
     window.usuariosRegistrados = window.usuariosRegistrados || [...defaultMainUsers];
 
@@ -313,27 +353,42 @@ document.addEventListener('DOMContentLoaded', () => {
             const correo = u.correo || u.email || '-';
             const telefono = u.telefono || u.phone || '-';
             const rol = u.nombre_rol || u.rol || 'Cliente';
-            const isSuspended = !!(u.suspendido || u.estado_cuenta === 'suspendido');
-            const isVerif = (u.verificado || u.otp_verificado) ? '<span class="text-emerald-500 font-bold ml-1" title="Verificado">✓</span>' : '';
+            const isBlocked = (u.estado_cuenta === 'bloqueado');
+            const isSuspended = !isBlocked && !!(u.suspendido || u.estado_cuenta === 'suspendido');
+            const isVerif = (u.verificado || u.otp_verificado) ? '<span class="text-[#195618] font-bold ml-1" title="Verificado">✓</span>' : '';
+
+            let badgeHtml = '';
+            if (isBlocked) {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800 border border-red-300">${rol} (Bloqueada)</span>`;
+            } else if (isSuspended) {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300">${rol} (Suspendido)</span>`;
+            } else if (rol.toLowerCase().includes('admin')) {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-[#5E7824] text-white border border-[#5E7824]">${rol}</span>`;
+            } else if (rol.toLowerCase().includes('socio') || rol.toLowerCase().includes('vendedor')) {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-[#A8C1A0]/40 text-[#195618] border border-[#5C8754]/50">${rol}</span>`;
+            } else {
+                badgeHtml = `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-[#C5DB9E]/50 text-[#195618] border border-[#93A981]/60">${rol}</span>`;
+            }
 
             const tr = document.createElement('tr');
-            tr.className = `border-b border-slate-100 transition-all hover:bg-slate-50/50 ${isSuspended ? 'bg-amber-50/40' : ''}`;
+            tr.className = `border-b border-slate-100 transition-all hover:bg-[#C5DB9E]/10 ${isBlocked ? 'bg-red-50/40' : (isSuspended ? 'bg-amber-50/40' : '')}`;
             tr.innerHTML = `
                 <td class="px-6 py-3.5 font-bold text-slate-800">${nombre} ${isVerif}</td>
                 <td class="px-6 py-3.5">${correo}</td>
                 <td class="px-6 py-3.5">${telefono}</td>
                 <td class="px-6 py-3.5">
-                    <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isSuspended ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-slate-100 text-slate-700 border border-slate-200'}">
-                        ${rol}${isSuspended ? ' (Suspendido)' : ''}
-                    </span>
+                    ${badgeHtml}
+                </td>
+                <td class="px-6 py-3.5 font-bold text-[#195618]">
+                    ${u.numero_socio ? '#' + u.numero_socio : '-'}
                 </td>
                 <td class="px-6 py-3.5 text-center">
                     <div class="inline-flex items-center space-x-1.5">
-                        <button type="button" class="btn-user-edit px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all flex items-center space-x-1">
+                        <button type="button" class="btn-user-edit px-2.5 py-1 text-xs font-bold rounded-lg bg-[#A8C1A0]/30 text-[#195618] border border-[#93A981]/50 hover:bg-[#A8C1A0]/60 transition-all flex items-center space-x-1">
                             <i class="fa-solid fa-pen-to-square"></i>
                             <span>Editar</span>
                         </button>
-                        <button type="button" class="btn-user-suspend px-2.5 py-1 text-xs font-bold rounded-lg ${isSuspended ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'} transition-all flex items-center space-x-1">
+                        <button type="button" class="btn-user-suspend px-2.5 py-1 text-xs font-bold rounded-lg ${isSuspended ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200' : 'bg-[#5E7824]/10 text-[#5E7824] border border-[#5E7824]/40 hover:bg-[#5E7824]/20'} transition-all flex items-center space-x-1">
                             <i class="fa-solid fa-user-slash"></i>
                             <span>${isSuspended ? 'Reactivar' : 'Suspender'}</span>
                         </button>
@@ -362,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('reg_password').value = '';
             document.getElementById('reg_telefono').value = '';
             document.getElementById('reg_rol').selectedIndex = 0;
-            formUserTitle.innerHTML = '<i class="fa-solid fa-user-plus text-emerald-500"></i><span>Registro de Usuario</span>';
+            formUserTitle.innerHTML = '<i class="fa-solid fa-user-plus text-[#5C8754]"></i><span>Registro de Usuario</span>';
             btnSubmitUser.textContent = 'Guardar Usuario';
             btnCancelEditUser.classList.add('hidden');
         });
@@ -398,7 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            const roleName = (rol == '1' || rol === 'Administrador') ? 'Administrador' : ((rol == '2' || rol === 'Vendedor') ? 'Vendedor' : 'Cliente');
+            const roleName = (rol == '1' || rol === 'Administrador') ? 'Administrador' : ((rol == '2' || rol === 'Socio' || rol === 'Vendedor') ? 'Socio' : 'Cliente');
 
             const payload = {
                 nombre,
@@ -408,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 contrasena: pass,
                 telefono: tel,
                 rol: roleName,
-                id_rol: parseInt(rol)
+                id_rol: (roleName === 'Administrador' ? 1 : (roleName === 'Socio' ? 2 : 3))
             };
 
             // 1.3 Petición POST a /api/usuarios (o PUT si es edición)
@@ -437,12 +492,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('reg_password').value = '';
                     document.getElementById('reg_telefono').value = '';
                     document.getElementById('reg_rol').selectedIndex = 0;
-                    formUserTitle.innerHTML = '<i class="fa-solid fa-user-plus text-emerald-500"></i><span>Registro de Usuario</span>';
+                    formUserTitle.innerHTML = '<i class="fa-solid fa-user-plus text-[#5C8754]"></i><span>Registro de Usuario</span>';
                     btnSubmitUser.textContent = 'Guardar Usuario';
                     if (btnCancelEditUser) btnCancelEditUser.classList.add('hidden');
 
                     const userSaved = data.data || payload;
                     userSaved.contrasena = pass;
+                    if (data.numero_socio) {
+                        userSaved.numero_socio = data.numero_socio;
+                    }
                     if (!window.usuariosRegistrados) window.usuariosRegistrados = [...defaultMainUsers];
                     const idx = window.usuariosRegistrados.findIndex(u => u.id_usuario == (editId || userSaved.id_usuario));
                     if (idx !== -1) {
@@ -455,7 +513,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     await window.cargarUsuarios();
                     if (isAdmin && typeof fetchAdminMetrics === 'function') await fetchAdminMetrics();
                     if (isAdmin && typeof fetchModerationData === 'function') await fetchModerationData();
-                    alert(editId ? '✅ Usuario actualizado exitosamente.' : '✅ Usuario registrado exitosamente.');
+
+                    if (roleName === 'Socio') {
+                        const numSocioAsignado = data.numero_socio || (data.data && data.data.numero_socio) || userSaved.numero_socio || '1';
+                        alert(`Socio registrado exitosamente. Número de Socio asignado: #${numSocioAsignado}`);
+                    } else {
+                        alert(editId ? '✅ Usuario actualizado exitosamente.' : '✅ Usuario registrado exitosamente.');
+                    }
                 } else {
                     alert('Error: ' + (data.message || 'No se pudo guardar el usuario en la base de datos.'));
                 }
@@ -469,12 +533,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     contrasena: pass,
                     password: pass,
                     telefono: tel,
-                    id_rol: parseInt(rol),
+                    id_rol: (roleName === 'Administrador' ? 1 : (roleName === 'Socio' ? 2 : 3)),
                     nombre_rol: roleName,
                     rol: roleName,
                     verificado: false,
                     suspendido: false
                 };
+
+                if (roleName === 'Socio') {
+                    const maxSocio = (window.usuariosRegistrados || []).reduce((max, u) => Math.max(max, u.numero_socio || 0), 0);
+                    nuevoUsuarioLocal.numero_socio = maxSocio + 1;
+                }
+
                 if (!window.usuariosRegistrados) window.usuariosRegistrados = [...defaultMainUsers];
                 if (editId) {
                     const idx = window.usuariosRegistrados.findIndex(u => u.id_usuario == editId);
@@ -488,7 +558,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('reg_rol').selectedIndex = 0;
                 if (btnCancelEditUser) btnCancelEditUser.classList.add('hidden');
                 renderUsersInTable(window.usuariosRegistrados);
-                alert('✅ Usuario guardado exitosamente.');
+
+                if (roleName === 'Socio') {
+                    alert(`Socio registrado exitosamente. Número de Socio asignado: #${nuevoUsuarioLocal.numero_socio}`);
+                } else {
+                    alert(editId ? '✅ Usuario actualizado exitosamente.' : '✅ Usuario guardado exitosamente.');
+                }
             }
         });
     }
@@ -527,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 usersList.push({
                     id_usuario: 2, id_rol: 2, nombre: 'Gisela', correo: 'ar230111983@arandas.tecmm.edu.mx',
                     email: 'ar230111983@arandas.tecmm.edu.mx', contrasena: '4321', password: '4321',
-                    telefono: '3471046625', nombre_rol: 'Vendedor', rol: 'Vendedor', verificado: false, suspendido: false
+                    telefono: '3471046625', nombre_rol: 'Socio', rol: 'Socio', numero_socio: 1, verificado: false, suspendido: false
                 });
             }
 
@@ -540,6 +615,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             usersList[idx].contrasena = localU.contrasena;
                             usersList[idx].password = localU.contrasena;
                         }
+                        if (localU.numero_socio && !usersList[idx].numero_socio) {
+                            usersList[idx].numero_socio = localU.numero_socio;
+                        }
                     } else {
                         usersList.push(localU);
                     }
@@ -548,13 +626,76 @@ document.addEventListener('DOMContentLoaded', () => {
 
             window.usuariosRegistrados = usersList;
             renderUsersInTable(usersList);
+            if (typeof poblarSelectorBloqueo === 'function') {
+                poblarSelectorBloqueo(usersList);
+            }
+            if (typeof poblarSelectorOtp === 'function') {
+                poblarSelectorOtp(usersList);
+            }
         } catch (error) {
             console.error('Error cargando usuarios:', error);
             window.usuariosRegistrados = window.usuariosRegistrados || defaultMainUsers;
             renderUsersInTable(window.usuariosRegistrados);
+            if (typeof poblarSelectorBloqueo === 'function') {
+                poblarSelectorBloqueo(window.usuariosRegistrados);
+            }
+            if (typeof poblarSelectorOtp === 'function') {
+                poblarSelectorOtp(window.usuariosRegistrados);
+            }
         }
     };
     const fetchUsuariosTable = window.cargarUsuarios;
+
+    // Selector dinámico para destinatarios del código OTP WhatsApp
+    window.poblarSelectorOtp = function(users) {
+        const selectOtp = document.getElementById('otp-usuario-select');
+        const inputTel = document.getElementById('otp-telefono-input');
+        if (!selectOtp) return;
+
+        const currentVal = selectOtp.value;
+        const userList = (users && users.length > 0) ? users : (window.usuariosRegistrados || defaultMainUsers);
+
+        selectOtp.innerHTML = '<option value="">-- Seleccionar Socio --</option>';
+        userList.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id_usuario;
+            opt.dataset.telefono = (u.telefono || '').replace(/\D/g, '');
+            opt.dataset.nombre = u.nombre || 'Socio';
+
+            // Formato limpio: únicamente nombre y número de socio sin el teléfono: Ej: "Gisela - Socio #1"
+            let etiqueta = '';
+            if (u.numero_socio) {
+                etiqueta = `${u.nombre} - Socio #${u.numero_socio}`;
+            } else if ((u.nombre_rol || u.rol || '').toLowerCase().includes('admin')) {
+                etiqueta = `${u.nombre} - Administrador`;
+            } else {
+                etiqueta = `${u.nombre} - ${u.nombre_rol || u.rol || 'Socio'}`;
+            }
+
+            opt.textContent = etiqueta;
+            selectOtp.appendChild(opt);
+        });
+
+        if (currentVal) {
+            selectOtp.value = currentVal;
+        }
+
+        // Mantener autocompletado del teléfono al seleccionar un socio
+        selectOtp.onchange = () => {
+            const selectedOpt = selectOtp.options[selectOtp.selectedIndex];
+            if (selectedOpt && selectedOpt.dataset.telefono && inputTel) {
+                inputTel.value = selectedOpt.dataset.telefono.replace(/\D/g, '');
+            }
+        };
+
+        // Si ya hay un socio seleccionado y el input está vacío, autocompletar
+        if (selectOtp.selectedIndex > 0 && inputTel && !inputTel.value) {
+            const selectedOpt = selectOtp.options[selectOtp.selectedIndex];
+            if (selectedOpt && selectedOpt.dataset.telefono) {
+                inputTel.value = selectedOpt.dataset.telefono.replace(/\D/g, '');
+            }
+        }
+    };
 
     window.cargarEdicionUsuario = (u) => {
         editUserIdInput.value = u.id_usuario;
@@ -562,9 +703,9 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('reg_correo').value = u.correo || u.email || '';
         document.getElementById('reg_password').value = u.contrasena || u.password || '';
         document.getElementById('reg_telefono').value = u.telefono || '';
-        document.getElementById('reg_rol').value = u.id_rol ? String(u.id_rol) : (u.nombre_rol === 'Administrador' ? '1' : (u.nombre_rol === 'Vendedor' ? '2' : '3'));
+        document.getElementById('reg_rol').value = u.id_rol ? String(u.id_rol) : (u.nombre_rol === 'Administrador' ? '1' : ((u.nombre_rol === 'Socio' || u.nombre_rol === 'Vendedor') ? '2' : '3'));
 
-        formUserTitle.innerHTML = '<i class="fa-solid fa-pen-to-square text-sky-500"></i><span>Editar Usuario</span>';
+        formUserTitle.innerHTML = '<i class="fa-solid fa-pen-to-square text-[#5C8754]"></i><span>Editar Usuario</span>';
         btnSubmitUser.textContent = 'Actualizar Usuario';
         btnCancelEditUser.classList.remove('hidden');
 
@@ -627,7 +768,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ tipo_acceso: 'Administrador', identificador: username, password })
                 });
                 const data = await res.json();
                 if (res.ok && data.success && data.user) {
@@ -650,35 +791,88 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 3. FUNCIONALIDAD DE VERIFICACIÓN OTP
+    // 3. FUNCIONALIDAD DE VERIFICACIÓN OTP CON WHATSAPP (wa.me)
     // ==========================================
     const btnGenerarOtp = document.getElementById('btnGenerarOtp');
     const displayOtpCode = document.getElementById('displayOtpCode');
     const formValidarOtp = document.getElementById('formValidarOtp');
     const otpFeedback = document.getElementById('otpFeedback');
+    const btnEnviarOtpWa = document.getElementById('btnEnviarOtpWa');
+
+    // Código guardado únicamente en memoria protegida (no visible en pantalla de laptop)
+    let ultimoCodigoOtpGenerado = null;
 
     if (btnGenerarOtp) {
         btnGenerarOtp.addEventListener('click', async () => {
-            // 3.1 Generar dinámicamente un número aleatorio de 6 dígitos y mostrarlo en grande en pantalla
-            const nuevoOtp = Math.floor(100000 + Math.random() * 900000).toString();
-            if (displayOtpCode) displayOtpCode.textContent = nuevoOtp;
+            // Generar dinámicamente número de 6 dígitos protegido en memoria
+            ultimoCodigoOtpGenerado = Math.floor(100000 + Math.random() * 900000).toString();
+
+            // Enmascarar código en pantalla para garantizar seguridad 2FA
+            if (displayOtpCode) {
+                displayOtpCode.textContent = '• • • • • •';
+            }
+
+            const otpStatusMsg = document.getElementById('otpStatusMessage');
+            if (otpStatusMsg) {
+                otpStatusMsg.textContent = '✅ Código enviado por WhatsApp al teléfono registrado.';
+                otpStatusMsg.className = 'text-xs text-[#195618] font-bold';
+            }
 
             if (otpFeedback) {
                 otpFeedback.classList.add('hidden');
                 otpFeedback.innerHTML = '';
             }
             const valInput = document.getElementById('val_otp_input');
-            if (valInput) valInput.value = '';
+            if (valInput) {
+                valInput.value = '';
+                valInput.focus();
+            }
+
+            // Obtener el teléfono y nombre del usuario seleccionado o del input manual
+            const selectOtp = document.getElementById('otp-usuario-select');
+            const inputTel = document.getElementById('otp-telefono-input');
+            let tel = (inputTel ? inputTel.value.trim().replace(/\D/g, '') : '');
+            let nombreDest = 'Socio';
+            let targetUserId = currentUser ? currentUser.id_usuario : 1;
+
+            if (selectOtp && selectOtp.selectedIndex > 0) {
+                const opt = selectOtp.options[selectOtp.selectedIndex];
+                nombreDest = opt.dataset.nombre || 'Socio';
+                targetUserId = opt.value || targetUserId;
+                if (!tel && opt.dataset.telefono) {
+                    tel = opt.dataset.telefono.replace(/\D/g, '');
+                    if (inputTel) inputTel.value = tel;
+                }
+            } else if (currentUser) {
+                nombreDest = currentUser.nombre || 'Socio';
+                if (!tel && currentUser.telefono) {
+                    tel = String(currentUser.telefono).replace(/\D/g, '');
+                    if (inputTel) inputTel.value = tel;
+                }
+            }
 
             try {
                 await fetch('/api/otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id_usuario: currentUser ? currentUser.id_usuario : 1, codigo_otp: nuevoOtp, intentos_fallidos: 0 })
+                    body: JSON.stringify({ id_usuario: targetUserId, codigo_otp: ultimoCodigoOtpGenerado, intentos_fallidos: 0 })
                 });
                 if (typeof fetchOtpHistory === 'function') await fetchOtpHistory();
             } catch (e) {
                 console.warn('Error registrando OTP en backend:', e);
+            }
+
+            // Si hay un teléfono de 10 dígitos asociado, abre automáticamente en una pestaña nueva:
+            // https://wa.me/52<TELEFONO_10_DIGITOS>?text=Hola%20<NOMBRE>,%20tu%20código%20de%20verificación%20LocalMarket%20es:%20<CODIGO_OTP>
+            if (tel && tel.length >= 10) {
+                const cleanPhone = tel.slice(-10);
+                const waText = encodeURIComponent(`Hola ${nombreDest}, tu código de verificación LocalMarket es: ${ultimoCodigoOtpGenerado}`);
+                const waUrl = `https://wa.me/52${cleanPhone}?text=${waText}`;
+                if (btnEnviarOtpWa) {
+                    btnEnviarOtpWa.href = waUrl;
+                    btnEnviarOtpWa.classList.remove('hidden');
+                }
+                window.open(waUrl, '_blank');
             }
         });
     }
@@ -686,9 +880,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (formValidarOtp) {
         formValidarOtp.addEventListener('submit', async (e) => {
             e.preventDefault();
-            // 3.2 Lee el valor de "VALIDAR CÓDIGO"
+            // Lee el valor ingresado por el usuario en "VALIDAR CÓDIGO"
             const inputVal = (document.getElementById('val_otp_input')?.value || '').trim();
-            const currentCode = (document.getElementById('displayOtpCode')?.textContent || '').trim();
 
             function mostrarOtpFeedback(esExitoso, mensaje) {
                 if (!otpFeedback) return;
@@ -702,18 +895,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // Si coincide con el número de 6 dígitos generado en pantalla
-            if (inputVal && inputVal === currentCode) {
-                mostrarOtpFeedback(true, 'Código OTP verificado correctamente');
-                try {
-                    await fetch('/api/otp/validar', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ codigo: inputVal, id_usuario: currentUser ? currentUser.id_usuario : 1 })
-                    });
-                } catch (err) {}
+            if (!inputVal) {
+                mostrarOtpFeedback(false, 'Por favor ingresa los 6 dígitos recibidos por WhatsApp.');
+                return;
+            }
+
+            // Validar contra la variable en memoria protegida o contra el backend
+            let esValido = false;
+            if (ultimoCodigoOtpGenerado && inputVal === ultimoCodigoOtpGenerado) {
+                esValido = true;
+            }
+
+            const selectOtp = document.getElementById('otp-usuario-select');
+            const targetUserId = (selectOtp && selectOtp.value) ? selectOtp.value : (currentUser ? currentUser.id_usuario : 1);
+
+            try {
+                const res = await fetch('/api/otp/validar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ codigo: inputVal, id_usuario: targetUserId })
+                });
+                const resData = await res.json();
+                if (res.ok && resData.success) {
+                    esValido = true;
+                }
+            } catch (err) {
+                console.warn('Validación de OTP contra backend falló, usando validación local:', err);
+            }
+
+            if (esValido) {
+                mostrarOtpFeedback(true, 'Código OTP verificado correctamente desde WhatsApp');
+                const otpStatusMsg = document.getElementById('otpStatusMessage');
+                if (otpStatusMsg) {
+                    otpStatusMsg.textContent = '🔒 Verificación completada con éxito.';
+                    otpStatusMsg.className = 'text-xs text-[#195618] font-bold';
+                }
             } else {
-                // Si no coincide o no se ha escrito nada
                 mostrarOtpFeedback(false, 'Código OTP inválido o no coincide');
             }
         });
@@ -731,7 +948,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     tbody.innerHTML += `<tr>
                         <td class="px-6 py-3.5 font-bold text-slate-800">${item.usuario_nombre || 'Administrador'}</td>
                         <td class="px-6 py-3.5">${item.telefono || '5512345678'}</td>
-                        <td class="px-6 py-3.5"><span class="font-mono font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded border border-purple-200">${item.codigo_otp}</span></td>
+                        <td class="px-6 py-3.5"><span class="font-mono font-bold text-[#195618] bg-[#C5DB9E]/30 px-2.5 py-1 rounded border border-[#88BD79]/40 tracking-widest">• • • • • •</span></td>
                         <td class="px-6 py-3.5 font-bold ${item.intentos_fallidos > 0 ? 'text-red-500' : 'text-slate-500'}">${item.intentos_fallidos || 0}</td>
                         <td class="px-6 py-3.5"><span class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Activo</span></td>
                     </tr>`;
@@ -752,8 +969,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const file = e.target.files[0];
             if (file) {
                 currentAvatarBase64 = await fileToBase64(file);
-                if (perfilAvatarPreview) perfilAvatarPreview.src = currentAvatarBase64;
-                if (sidebarAvatar) sidebarAvatar.src = currentAvatarBase64;
+                if (currentAvatarBase64) {
+                    localStorage.setItem(avatarKey, currentAvatarBase64);
+                    currentUser.foto_perfil = currentAvatarBase64;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    if (perfilAvatarPreview) perfilAvatarPreview.src = currentAvatarBase64;
+                    const sidebarAvatar = document.getElementById('sidebarAvatar');
+                    if (sidebarAvatar) sidebarAvatar.src = currentAvatarBase64;
+                }
             }
         });
     }
@@ -771,12 +994,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 return alert('Las contraseñas no coinciden.');
             }
 
+            const finalAvatar = currentAvatarBase64 || currentUser.foto_perfil || localStorage.getItem(avatarKey);
+
             const payload = {
-                id_usuario: currentUser.id_usuario || 1,
+                id_usuario: currentUser.id_usuario || (isAdmin ? 1 : 2),
                 nombre,
                 correo,
                 contrasena: pass,
-                foto_perfil: currentAvatarBase64 || currentUser.foto_perfil
+                foto_perfil: finalAvatar
             };
 
             try {
@@ -790,14 +1015,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('✅ Perfil actualizado correctamente.');
                     currentUser.nombre = nombre;
                     currentUser.correo = correo;
-                    if (currentAvatarBase64) currentUser.foto_perfil = currentAvatarBase64;
+                    if (finalAvatar) {
+                        currentUser.foto_perfil = finalAvatar;
+                        localStorage.setItem(avatarKey, finalAvatar);
+                    }
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
                     renderUserProfile();
                 } else {
                     alert('Error: ' + (data.message || 'No se pudo actualizar el perfil.'));
                 }
             } catch (err) {
-                alert('Error al actualizar perfil.');
+                // Modo resiliente offline
+                if (finalAvatar) {
+                    currentUser.foto_perfil = finalAvatar;
+                    localStorage.setItem(avatarKey, finalAvatar);
+                }
+                currentUser.nombre = nombre;
+                currentUser.correo = correo;
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                renderUserProfile();
+                alert('✅ Perfil guardado localmente en este dispositivo.');
             }
         });
     }
@@ -865,10 +1102,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const stock = parseInt(document.getElementById('pub_stock').value);
             const desc = document.getElementById('pub_descripcion').value.trim();
 
+            if (!titulo) return alert('Por favor ingresa el título del producto.');
             if (isNaN(precio) || precio < 0) return alert('El precio debe ser un número positivo.');
             if (isNaN(stock) || stock < 0) return alert('El stock debe ser un número positivo o cero.');
 
             const payload = {
+                id_vendedor: (currentUser && currentUser.id_usuario) ? currentUser.id_usuario : 1,
                 titulo,
                 id_categoria: catValue,
                 categoria_nombre: catNombre,
@@ -898,9 +1137,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (res.ok && data.success) {
                     alert(editId ? '✅ Producto actualizado exitosamente.' : '🎉 Producto publicado exitosamente.');
-                    if (btnCancelEditProduct) btnCancelEditProduct.click();
+                    
+                    // Limpiar formulario y previsualizaciones
+                    formPublicarProducto.reset();
+                    editProductIdInput.value = '';
+                    previewImg1.src = 'https://placehold.co/150x150?text=Foto+Principal';
+                    previewImg3.src = 'https://placehold.co/150x150?text=Foto+Detalle';
+                    img1Base64 = img3Base64 = null;
+                    formProductTitle.textContent = 'Publicación de Producto';
+                    btnSubmitProduct.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><span>Guardar Producto</span>';
+                    if (btnCancelEditProduct) btnCancelEditProduct.classList.add('hidden');
+
+                    // Reiniciar el filtro a 'Todas' para que el producto recién creado se visualice
+                    setCategoryFilter('Todas');
+                    const catalogoSearchInput = document.getElementById('catalogoSearchInput');
+                    if (catalogoSearchInput) catalogoSearchInput.value = '';
+                    currentSearchTerm = '';
+
+                    // Re-consultar GET /api/productos y re-renderizar la cuadrícula inmediatamente
                     await fetchCatalogo();
-                    if (isAdmin) await fetchAdminMetrics();
+                    if (isAdmin && typeof fetchAdminMetrics === 'function') await fetchAdminMetrics();
+                    if (typeof updateStockBadgeCount === 'function') updateStockBadgeCount();
+
+                    // Redirigir inmediatamente a la vista de Catálogo
                     switchTab('mod_catalogo');
                 } else {
                     alert('Error: ' + (data.message || 'No se pudo guardar el producto.'));
@@ -917,7 +1176,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const catSelect = document.getElementById('pub_categoria');
         if (catSelect) {
-            const matchedOpt = [...catSelect.options].find(opt => opt.value === p.categoria_nombre || opt.text === p.categoria_nombre || opt.value == p.id_categoria);
+            const matchedOpt = [...catSelect.options].find(opt => 
+                normalizarTexto(opt.value) === normalizarTexto(p.categoria_nombre) || 
+                normalizarTexto(opt.text) === normalizarTexto(p.categoria_nombre) || 
+                opt.value == p.id_categoria
+            );
             if (matchedOpt) {
                 catSelect.value = matchedOpt.value;
             } else {
@@ -943,114 +1206,177 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ==========================================
-    // MÓDULO 4: CATÁLOGO
+    // MÓDULO 4: CATÁLOGO Y FILTRADO POR CATEGORÍAS
     // ==========================================
+    let catalogoProductosCargados = [];
     let currentCategoryFilter = 'Todas';
     let currentSearchTerm = '';
+
+    // Función auxiliar para normalizar texto (mayúsculas, minúsculas y acentos)
+    function normalizarTexto(str) {
+        if (!str) return '';
+        return str
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    }
+
+    // Actualiza visualmente la clase activa (verde oscuro) en el botón presionado y la quita de los demás
+    window.setCategoryFilter = function(catName) {
+        currentCategoryFilter = catName || 'Todas';
+        const normTarget = normalizarTexto(currentCategoryFilter);
+        const allBtns = document.querySelectorAll('.cat-filter-btn');
+        allBtns.forEach(b => {
+            const btnCat = normalizarTexto(b.getAttribute('data-cat') || b.textContent);
+            if (btnCat === normTarget) {
+                b.classList.add('active', 'bg-[#195618]', 'text-white', 'shadow-sm', 'font-bold');
+                b.classList.remove('bg-[#C5DB9E]/30', 'text-[#195618]', 'hover:bg-[#C5DB9E]/70', 'border', 'border-[#93A981]/50', 'font-semibold');
+            } else {
+                b.classList.remove('active', 'bg-[#195618]', 'text-white', 'shadow-sm', 'font-bold');
+                b.classList.add('bg-[#C5DB9E]/30', 'text-[#195618]', 'hover:bg-[#C5DB9E]/70', 'border', 'border-[#93A981]/50', 'font-semibold');
+            }
+        });
+    };
+
+    // Renderizado dinámico de tarjetas en el Catálogo
+    function renderizarCatalogo() {
+        const grid = document.getElementById('catalogoGrid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        const normCat = normalizarTexto(currentCategoryFilter);
+        const normSearch = normalizarTexto(currentSearchTerm);
+
+        // Filtrar productos activos y no suspendidos
+        const visibleProducts = (catalogoProductosCargados || []).filter(p => {
+            if (p.moderado || p.estado_publicacion === 'suspendido') return false;
+
+            // Filtro por categoría (normalizando mayúsculas, minúsculas y acentos)
+            if (normCat && normCat !== 'todas') {
+                const pCat = normalizarTexto(p.categoria_nombre);
+                if (pCat !== normCat) return false;
+            }
+
+            // Filtro por búsqueda de texto
+            if (normSearch) {
+                const titulo = normalizarTexto(p.titulo);
+                const desc = normalizarTexto(p.descripcion);
+                const cat = normalizarTexto(p.categoria_nombre);
+                if (!titulo.includes(normSearch) && !desc.includes(normSearch) && !cat.includes(normSearch)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        if (visibleProducts.length > 0) {
+            visibleProducts.forEach(p => {
+                const stock = parseInt(p.stock) || 0;
+                const isAgotado = stock === 0;
+                const isLowStock = stock > 0 && stock <= 5;
+
+                let stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]">En Existencia (${stock})</span>`;
+                if (isAgotado) {
+                    stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-red-50 text-red-700 border border-red-200">Agotado (0)</span>`;
+                } else if (isLowStock) {
+                    stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-800 border border-amber-300">⚠️ Stock Bajo (${stock})</span>`;
+                }
+
+                const card = document.createElement('div');
+                card.className = `bg-white rounded-2xl border border-[#93A981]/40 shadow-sm hover:shadow-md hover:border-[#5C8754] transition-all overflow-hidden flex flex-col justify-between ${p.moderado ? 'opacity-50 grayscale' : ''}`;
+                card.innerHTML = `
+                    <div>
+                        <div class="relative aspect-video bg-[#C5DB9E]/15 overflow-hidden">
+                            <img src="${p.imagen_1 || 'https://placehold.co/400x250?text=Sin+Imagen'}" alt="${p.titulo}" class="w-full h-full object-cover">
+                            <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-white/95 backdrop-blur-sm text-[#195618] border border-[#93A981]/40 shadow-xs">
+                                ${p.categoria_nombre || 'General'}
+                            </span>
+                        </div>
+
+                        <div class="p-4 space-y-2">
+                            <h4 class="font-extrabold text-[#195618] text-sm line-clamp-1">${p.titulo}</h4>
+                            <p class="text-xs text-slate-500 line-clamp-2">${p.descripcion || 'Sin descripción'}</p>
+                            <div class="flex items-center justify-between pt-2">
+                                <p class="text-lg font-black text-[#195618] tabular-nums">$${parseFloat(p.precio).toFixed(2)}</p>
+                                ${stockBadgeHtml}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones de Acción: Comprar y Editar -->
+                    <div class="p-4 pt-0 space-y-2">
+                        <button class="btn-ver-detalle w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${isAgotado ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-[#195618] hover:bg-[#134412] text-white shadow-md shadow-[#195618]/20 active:scale-[0.99]'}" ${isAgotado ? 'disabled' : ''}>
+                            <i class="fa-solid fa-cart-shopping"></i>
+                            <span>${isAgotado ? 'Agotado' : 'Comprar / Detalle'}</span>
+                        </button>
+                        <button class="btn-editar-prod w-full py-2 rounded-xl text-xs font-bold bg-[#C5DB9E]/30 hover:bg-[#C5DB9E]/60 text-[#195618] border border-[#93A981]/40 transition-all flex items-center justify-center space-x-1.5">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                            <span>Editar Producto</span>
+                        </button>
+                    </div>
+                `;
+
+                if (!isAgotado) {
+                    card.querySelector('.btn-ver-detalle').addEventListener('click', () => openProductDetail(p));
+                }
+                if (isCliente) {
+                    card.querySelector('.btn-editar-prod')?.classList.add('hidden');
+                } else {
+                    card.querySelector('.btn-editar-prod').addEventListener('click', () => cargarEdicionProducto(p));
+                }
+
+                grid.appendChild(card);
+            });
+        } else {
+            grid.innerHTML = `
+                <div class="col-span-full py-16 text-center space-y-3 bg-white rounded-2xl border border-[#93A981]/30 p-8">
+                    <div class="w-14 h-14 bg-[#C5DB9E]/30 text-[#195618] rounded-full flex items-center justify-center mx-auto text-xl">
+                        <i class="fa-solid fa-box-open"></i>
+                    </div>
+                    <h4 class="font-extrabold text-[#195618] text-base">No se encontraron productos</h4>
+                    <p class="text-xs text-slate-500">No hay artículos disponibles con el filtro seleccionado "${currentCategoryFilter}".</p>
+                </div>
+            `;
+        }
+    }
+
+    // Consulta de productos desde backend y renderizado inmediato
+    async function fetchCatalogo() {
+        try {
+            const res = await fetch('/api/productos');
+            const result = await res.json();
+            if (result.success && Array.isArray(result.data)) {
+                catalogoProductosCargados = result.data;
+            } else if (Array.isArray(result)) {
+                catalogoProductosCargados = result;
+            } else {
+                catalogoProductosCargados = [];
+            }
+            renderizarCatalogo();
+        } catch (err) {
+            console.warn('Error al obtener catálogo:', err);
+            renderizarCatalogo();
+        }
+    }
+
+    // Eventos para botones de categorías en el Catálogo
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.cat-filter-btn');
+        if (!btn) return;
+        const cat = btn.getAttribute('data-cat') || btn.textContent.trim() || 'Todas';
+        setCategoryFilter(cat);
+        renderizarCatalogo();
+    });
 
     const catalogoSearchInput = document.getElementById('catalogoSearchInput');
     if (catalogoSearchInput) {
         catalogoSearchInput.addEventListener('input', (e) => {
-            currentSearchTerm = e.target.value;
-            fetchCatalogo();
+            currentSearchTerm = e.target.value.trim();
+            renderizarCatalogo();
         });
-    }
-
-    const catFilterBtns = document.querySelectorAll('.cat-filter-btn');
-    catFilterBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            catFilterBtns.forEach(b => {
-                b.classList.remove('active', 'bg-slate-800', 'text-white');
-                b.classList.add('bg-slate-100', 'text-slate-600');
-            });
-            btn.classList.add('active', 'bg-slate-800', 'text-white');
-            btn.classList.remove('bg-slate-100', 'text-slate-600');
-            currentCategoryFilter = btn.getAttribute('data-cat');
-            fetchCatalogo();
-        });
-    });
-
-    async function fetchCatalogo() {
-        try {
-            let url = `/api/productos?search=${encodeURIComponent(currentSearchTerm)}`;
-            if (currentCategoryFilter !== 'Todas') {
-                url += `&categoria=${encodeURIComponent(currentCategoryFilter)}`;
-            }
-
-            const res = await fetch(url);
-            const result = await res.json();
-            const grid = document.getElementById('catalogoGrid');
-            if (!grid) return;
-            grid.innerHTML = '';
-
-            const allProducts = (result.success && Array.isArray(result.data)) ? result.data : [];
-            // Ocultar productos suspendidos del catálogo
-            const visibleProducts = allProducts.filter(p => !p.moderado && p.estado_publicacion !== 'suspendido');
-
-            if (visibleProducts.length > 0) {
-                visibleProducts.forEach(p => {
-                    const stock = parseInt(p.stock) || 0;
-                    const isAgotado = stock === 0;
-                    const isLowStock = stock > 0 && stock <= 5;
-
-                    let stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">En Existencia (${stock})</span>`;
-                    if (isAgotado) {
-                        stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-red-50 text-red-700 border border-red-200">Agotado (0)</span>`;
-                    } else if (isLowStock) {
-                        stockBadgeHtml = `<span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-amber-50 text-amber-700 border border-amber-200">⚠️ Stock Bajo (${stock})</span>`;
-                    }
-
-                    const card = document.createElement('div');
-                    card.className = `bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between ${p.moderado ? 'opacity-50 grayscale' : ''}`;
-                    card.innerHTML = `
-                        <div>
-                            <div class="relative aspect-video bg-slate-100 overflow-hidden">
-                                <img src="${p.imagen_1 || 'https://placehold.co/400x250?text=Sin+Imagen'}" alt="${p.titulo}" class="w-full h-full object-cover">
-                                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-bold bg-white/90 backdrop-blur-sm text-slate-800 shadow-sm">
-                                    ${p.categoria_nombre || 'General'}
-                                </span>
-                            </div>
-
-                            <div class="p-4 space-y-2">
-                                <h4 class="font-bold text-slate-800 text-sm line-clamp-1">${p.titulo}</h4>
-                                <p class="text-xs text-slate-500 line-clamp-2">${p.descripcion || 'Sin descripción'}</p>
-                                <div class="flex items-center justify-between pt-2">
-                                    <p class="text-lg font-extrabold text-emerald-600">$${parseFloat(p.precio).toFixed(2)}</p>
-                                    ${stockBadgeHtml}
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Botones de Acción: Comprar y Editar -->
-                        <div class="p-4 pt-0 space-y-2">
-                            <button class="btn-ver-detalle w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 ${isAgotado ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'}" ${isAgotado ? 'disabled' : ''}>
-                                <i class="fa-solid fa-cart-shopping"></i>
-                                <span>${isAgotado ? 'Agotado' : 'Comprar / Detalle'}</span>
-                            </button>
-                            <button class="btn-editar-prod w-full py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all flex items-center justify-center space-x-1.5">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                                <span>Editar Producto</span>
-                            </button>
-                        </div>
-                    `;
-
-                    if (!isAgotado) {
-                        card.querySelector('.btn-ver-detalle').addEventListener('click', () => openProductDetail(p));
-                    }
-                    if (isCliente) {
-                        card.querySelector('.btn-editar-prod')?.classList.add('hidden');
-                    } else {
-                        card.querySelector('.btn-editar-prod').addEventListener('click', () => cargarEdicionProducto(p));
-                    }
-
-                    grid.appendChild(card);
-                });
-            } else {
-                grid.innerHTML = `<div class="col-span-full text-center py-12 bg-white rounded-2xl border border-slate-200 text-slate-400">
-                    <p class="font-semibold text-sm">No se encontraron productos.</p>
-                </div>`;
-            }
-        } catch (e) {}
     }
 
     // Modal Stock Bajo
@@ -1097,124 +1423,64 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // MÓDULO 5: COMPRA (DETALLE DINÁMICO Y CHECKOUT)
+    // MÓDULO 5: COMPRA
     // ==========================================
     let currentSelectedProduct = null;
 
-    function renderCompraView() {
-        const estadoVacio = document.getElementById('compraEstadoVacio');
-        const detalleProd = document.getElementById('compraDetalleProducto');
-        if (!currentSelectedProduct) {
-            if (estadoVacio) estadoVacio.classList.remove('hidden');
-            if (detalleProd) detalleProd.classList.add('hidden');
-        } else {
-            if (estadoVacio) estadoVacio.classList.add('hidden');
-            if (detalleProd) detalleProd.classList.remove('hidden');
-        }
-    }
-
-    const btnIrAlCatalogo = document.getElementById('btnIrAlCatalogo');
-    if (btnIrAlCatalogo) {
-        btnIrAlCatalogo.addEventListener('click', () => switchTab('mod_catalogo'));
-    }
-
-    const btnVolverAlCatalogo = document.getElementById('btnVolverAlCatalogo');
-    if (btnVolverAlCatalogo) {
-        btnVolverAlCatalogo.addEventListener('click', () => switchTab('mod_catalogo'));
-    }
-
     function openProductDetail(product) {
-        if (!product) return;
         currentSelectedProduct = product;
-        renderCompraView();
-
         const stock = parseInt(product.stock) || 0;
         const isAgotado = stock <= 0;
 
-        const elTitulo = document.getElementById('detailTitulo');
-        if (elTitulo) elTitulo.textContent = product.titulo || 'Sin título';
-
-        const elCategoria = document.getElementById('detailCategoria');
-        if (elCategoria) elCategoria.textContent = product.categoria_nombre || 'General';
-
-        const elPrecio = document.getElementById('detailPrecio');
-        if (elPrecio) elPrecio.textContent = `$${parseFloat(product.precio || 0).toFixed(2)} MXN`;
-
-        const elDescripcion = document.getElementById('detailDescripcion');
-        if (elDescripcion) elDescripcion.textContent = product.descripcion || 'Sin descripción disponible para este producto.';
-
-        const elVendedor = document.getElementById('detailVendedor');
-        if (elVendedor) elVendedor.textContent = product.vendedor_nombre || 'Vendedor LocalMarket';
+        document.getElementById('detailTitulo').textContent = product.titulo;
+        document.getElementById('detailCategoria').textContent = product.categoria_nombre || 'General';
+        document.getElementById('detailPrecio').textContent = `$${parseFloat(product.precio).toFixed(2)} MXN`;
+        document.getElementById('detailDescripcion').textContent = product.descripcion || 'Sin descripción';
+        document.getElementById('detailVendedor').textContent = product.socio_nombre || product.vendedor_nombre || 'Socio LocalMarket';
 
         const stockBadge = document.getElementById('detailStockBadge');
         const cantInput = document.getElementById('compra_cantidad');
         const btnConfirmarCompra = document.getElementById('btnConfirmarCompra');
 
         if (isAgotado) {
-            if (stockBadge) {
-                stockBadge.textContent = 'Agotado (0 unidades en stock)';
-                stockBadge.className = 'font-bold text-red-600';
-            }
-            if (cantInput) {
-                cantInput.value = 0;
-                cantInput.min = 0;
-                cantInput.max = 0;
-                cantInput.disabled = true;
-            }
+            stockBadge.textContent = 'Agotado (0 unidades en stock)';
+            stockBadge.className = 'font-bold text-red-600';
+            cantInput.value = 0;
+            cantInput.min = 0;
+            cantInput.max = 0;
+            cantInput.disabled = true;
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.disabled = true;
                 btnConfirmarCompra.className = 'w-full bg-slate-200 text-slate-400 font-bold py-3 rounded-xl text-base cursor-not-allowed flex items-center justify-center space-x-2';
                 btnConfirmarCompra.innerHTML = '<i class="fa-solid fa-ban"></i><span>Producto Agotado (No disponible)</span>';
             }
         } else {
-            if (stockBadge) {
-                stockBadge.textContent = `${stock} unidades en stock`;
-                stockBadge.className = 'font-bold text-emerald-600';
-            }
-            if (cantInput) {
-                cantInput.value = 1;
-                cantInput.min = 1;
-                cantInput.max = stock;
-                cantInput.disabled = false;
-            }
+            stockBadge.textContent = `${stock} unidades en stock`;
+            stockBadge.className = 'font-extrabold text-[#195618]';
+            cantInput.value = 1;
+            cantInput.min = 1;
+            cantInput.max = stock;
+            cantInput.disabled = false;
             if (btnConfirmarCompra) {
                 btnConfirmarCompra.disabled = false;
-                btnConfirmarCompra.className = 'w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-base transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center space-x-2';
+                btnConfirmarCompra.className = 'w-full bg-[#195618] hover:bg-[#134412] text-white font-bold py-3.5 rounded-xl text-base transition-all shadow-lg shadow-[#195618]/25 flex items-center justify-center space-x-2';
                 btnConfirmarCompra.innerHTML = '<i class="fa-solid fa-truck-fast"></i><span>Generar Pedido (Pago Contra Entrega)</span>';
             }
         }
 
-        const fallbackImg = 'https://placehold.co/600x600?text=Sin+Imagen';
-        const img1 = product.imagen_1 || fallbackImg;
-        const img2 = product.imagen_2 || img1;
-        const img3 = product.imagen_3 || img2;
+        const img1 = product.imagen_1 || 'https://placehold.co/600x600?text=IMG1';
+        const img3 = product.imagen_3 || img1;
 
         const mainImg = document.getElementById('detailMainImg');
         const t1 = document.getElementById('detailThumb1');
         const t3 = document.getElementById('detailThumb3');
-        const thumbsContainer = document.getElementById('detailThumbsContainer');
 
-        if (mainImg) {
-            mainImg.src = img1;
-            mainImg.alt = product.titulo || 'Producto Principal';
-        }
+        mainImg.src = img1;
+        t1.src = img1;
+        t3.src = img3;
 
-        if (t1) {
-            t1.src = img1;
-            t1.onclick = () => { if (mainImg) mainImg.src = img1; };
-        }
-        if (t3) {
-            t3.src = img3;
-            t3.onclick = () => { if (mainImg) mainImg.src = img3; };
-        }
-
-        if (thumbsContainer) {
-            if (!product.imagen_2 && !product.imagen_3) {
-                thumbsContainer.classList.add('hidden');
-            } else {
-                thumbsContainer.classList.remove('hidden');
-            }
-        }
+        t1.onclick = () => { mainImg.src = img1; };
+        t3.onclick = () => { mainImg.src = img3; };
 
         updateCompraTotal();
         switchTab('mod_detalle');
@@ -1233,7 +1499,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const cant = parseInt(document.getElementById('compra_cantidad').value) || 1;
-        const total = cant * parseFloat(currentSelectedProduct.precio || 0);
+        const total = cant * parseFloat(currentSelectedProduct.precio);
         document.getElementById('compra_total_preview').value = `$${total.toFixed(2)} MXN`;
     }
 
@@ -1256,7 +1522,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return alert(`⚠️ Stock insuficiente. Solo hay ${stock} unidades disponibles.`);
             }
 
-            const total = cant * parseFloat(currentSelectedProduct.precio || 0);
+            const total = cant * parseFloat(currentSelectedProduct.precio);
             const direccion = document.getElementById('compra_direccion').value.trim();
 
             const payload = {
@@ -1267,7 +1533,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 total: total,
                 direccion_entrega: direccion,
                 comprador_nombre: currentUser.nombre || 'Cliente LocalMarket',
-                comprador_telefono: currentUser.telefono || '5512345678'
+                comprador_telefono: currentUser.telefono || '5512345678',
+                numero_socio_atencion: currentUser.numero_socio || (currentUser.numero_socio_atencion || 1)
             };
 
             try {
@@ -1278,9 +1545,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 const data = await res.json();
                 if (res.ok && data.success) {
-                    alert(`🎉 ¡Pedido generado con éxito! Folio #${data.data.id_pedido}`);
-                    currentSelectedProduct = null;
-                    renderCompraView();
+                    const pedidoId = data.data ? data.data.id_pedido : 'Nuevo';
+                    alert(`🎉 ¡Pedido generado con éxito! Folio #${pedidoId}`);
+
+                    // Si hay enlace de WhatsApp del Socio, abrirlo para enviar el comprobante directamente
+                    if (data.whatsapp_link) {
+                        window.open(data.whatsapp_link, '_blank');
+                    } else if (currentUser && (currentUser.telefono_socio || isCliente)) {
+                        const telSocio = (currentUser.telefono_socio || '3471046625').replace(/\D/g, '');
+                        const waMsg = encodeURIComponent(`Hola ${currentUser.nombre_socio || 'Socio'}, soy ${currentUser.nombre || 'Cliente'}. Acabo de generar el pedido #${pedidoId} en LocalMarket por $${total.toFixed(2)} MXN (${cant}x ${currentSelectedProduct.titulo}).`);
+                        window.open(`https://wa.me/52${telSocio}?text=${waMsg}`, '_blank');
+                    }
+
                     await fetchCatalogo();
                     await fetchPedidos();
                     if (isAdmin) await fetchAdminMetrics();
@@ -1295,11 +1571,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // MÓDULO 6: PEDIDOS (ADMIN & VENDEDOR VEN TODO, CLIENTE VE SUS COMPRAS)
+    // MÓDULO 6: PEDIDOS (ADMIN & SOCIO GESTIONAN, CLIENTE VE SUS COMPRAS)
     // ==========================================
     window.cargarPedidos = async function cargarPedidos() {
         try {
-            const res = await fetch('/api/pedidos_ventas');
+            let url = '/api/pedidos_ventas';
+            if (isSocio && currentUser && currentUser.numero_socio) {
+                url += `?numero_socio=${currentUser.numero_socio}`;
+            }
+            const res = await fetch(url);
             const result = await res.json();
             const tbody = document.querySelector('#tablaPedidosMaster tbody');
             if (!tbody) return;
@@ -1308,33 +1588,37 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.success && Array.isArray(result.data) && result.data.length > 0) {
                 let orders = result.data;
 
-                // Si el rol es Cliente, ve únicamente sus pedidos; Administrador y Vendedor ven todos los pedidos de la plataforma
+                // Si el rol es Cliente, ve únicamente sus compras; Socio ve las de su numero_socio; Admin ve todas
                 if (isCliente && currentUser) {
                     orders = orders.filter(order => {
                         const matchId = currentUser.id_usuario && Number(order.id_comprador) === Number(currentUser.id_usuario);
                         const matchNombre = currentUser.nombre && order.comprador_nombre && order.comprador_nombre.toLowerCase().trim() === currentUser.nombre.toLowerCase().trim();
                         return matchId || matchNombre;
                     });
+                } else if (isSocio && currentUser && currentUser.numero_socio) {
+                    orders = orders.filter(order => {
+                        return Number(order.numero_socio_atencion) === Number(currentUser.numero_socio);
+                    });
                 }
 
                 if (orders.length > 0) {
                     orders.forEach(order => {
                         const fecha = order.fecha_pedido ? String(order.fecha_pedido).substring(0, 10) : 'Hoy';
-                        let badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
-                        if (order.estado === 'Completado') badgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                        if (order.estado === 'En camino') badgeClass = 'bg-cyan-50 text-cyan-700 border-cyan-200';
+                        let badgeClass = 'bg-[#5E7824]/15 text-[#5E7824] border-[#5E7824]/40';
+                        if (order.estado === 'Completado') badgeClass = 'bg-[#9BBB54]/25 text-[#195618] border-[#9BBB54]';
+                        if (order.estado === 'En camino') badgeClass = 'bg-[#88BD79]/25 text-[#195618] border-[#88BD79]';
                         if (order.estado === 'Cancelado') badgeClass = 'bg-rose-50 text-rose-700 border-rose-200';
 
                         const isCancelable = order.estado !== 'Completado' && order.estado !== 'Cancelado';
 
                         let accionesHtml = '';
-                        if (isAdmin || isVendedor) {
+                        if (isAdmin || isSocio) {
                             accionesHtml = `
                                 <div class="inline-flex items-center space-x-1.5">
-                                    <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-cyan-50 text-cyan-700 border border-cyan-200 hover:bg-cyan-100 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'En camino')">
+                                    <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-[#88BD79]/20 text-[#195618] border border-[#88BD79] hover:bg-[#88BD79]/40 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'En camino')">
                                         🚚 En camino
                                     </button>
-                                    <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'Completado')">
+                                    <button class="px-2.5 py-1 text-xs font-bold rounded-lg bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54] hover:bg-[#9BBB54]/50 transition-all" onclick="cambiarEstadoPedido(${order.id_pedido}, 'Completado')">
                                         ✔ Entregado
                                     </button>
                                     <button class="px-2.5 py-1 text-xs font-bold rounded-lg ${isCancelable ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100' : 'bg-slate-100 text-slate-400 cursor-not-allowed'} transition-all" ${!isCancelable ? 'disabled' : ''} onclick="cancelarPedido(${order.id_pedido})">
@@ -1357,7 +1641,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span class="block text-xs text-slate-400 font-normal">${order.producto_titulo || 'Producto'}</span>
                             </td>
                             <td class="px-6 py-4 text-xs text-slate-500">${fecha}</td>
-                            <td class="px-6 py-4 font-extrabold text-emerald-600">$${parseFloat(order.total).toFixed(2)}</td>
+                            <td class="px-6 py-4 font-black text-[#195618] tabular-nums">$${parseFloat(order.total).toFixed(2)}</td>
                             <td class="px-6 py-4">
                                 <span class="px-3 py-1 text-xs font-bold rounded-full border ${badgeClass}">
                                     ${order.estado}
@@ -1411,7 +1695,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // ==========================================
-    // MÓDULO 7: NOTIFICACIONES (ADMIN & VENDEDOR)
+    // MÓDULO 7: NOTIFICACIONES (ADMIN & SOCIO)
     // ==========================================
     const formSimularAlerta = document.getElementById('formSimularAlerta');
     if (formSimularAlerta) {
@@ -1472,59 +1756,329 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // MÓDULO 8: SEGURIDAD (ADMIN ONLY)
     // ==========================================
+    let securityCountdownInterval = null;
+    let currentLockedUsersList = [];
+
+    function actualizarDetalleUsuarioBloqueo(targetUserId) {
+        const users = window.usuariosRegistrados || defaultMainUsers;
+        let u = users.find(x => x.id_usuario == targetUserId);
+        if (!u) {
+            u = {
+                id_usuario: currentUser.id_usuario || 1,
+                nombre: currentUser.nombre || 'Administrador',
+                correo: currentUser.correo || 'admin@localmarket.com',
+                nombre_rol: currentUser.nombre_rol || 'Administrador',
+                estado_cuenta: 'activo'
+            };
+        }
+
+        const avatarEl = document.getElementById('userBloqueoAvatar');
+        const nombreEl = document.getElementById('userBloqueoNombre');
+        const rolEl = document.getElementById('userBloqueoRol');
+        const correoEl = document.getElementById('userBloqueoCorreo');
+        const badgeEl = document.getElementById('userBloqueoEstadoBadge');
+
+        const initialLetters = (u.nombre || 'US').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'LM';
+        if (avatarEl) avatarEl.textContent = initialLetters;
+        if (nombreEl) nombreEl.textContent = u.nombre || 'Usuario';
+        if (rolEl) rolEl.textContent = u.nombre_rol || u.rol || 'Cliente';
+        if (correoEl) correoEl.textContent = u.correo || u.email || 'correo@localmarket.com';
+
+        // Determinar si este usuario específico está bloqueado
+        const isLocked = currentLockedUsersList.some(b => b.id_usuario == u.id_usuario) || (u.estado_cuenta === 'bloqueado');
+        const isSuspended = !isLocked && !!(u.suspendido || u.estado_cuenta === 'suspendido');
+
+        if (badgeEl) {
+            if (isLocked) {
+                badgeEl.className = 'px-3 py-1 text-xs font-bold rounded-full bg-red-100 text-red-800 border border-red-300';
+                badgeEl.textContent = 'Bloqueada';
+            } else if (isSuspended) {
+                badgeEl.className = 'px-3 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+                badgeEl.textContent = 'Suspendida';
+            } else {
+                badgeEl.className = 'px-3 py-1 text-xs font-bold rounded-full bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]';
+                badgeEl.textContent = 'Activa';
+            }
+        }
+
+        // Actualizar Banner informativo con respecto al usuario seleccionado
+        const banner = document.getElementById('securityBanner');
+        const icon = document.getElementById('securityIcon');
+        const title = document.getElementById('securityStatusTitle');
+        const desc = document.getElementById('securityStatusDesc');
+        const countdownBox = document.getElementById('lockCountdownBox');
+
+        if (banner && icon && title && desc && countdownBox) {
+            const lockedInfo = currentLockedUsersList.find(b => b.id_usuario == u.id_usuario);
+            if (lockedInfo || isLocked) {
+                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-red-50 border-red-300 text-red-800';
+                icon.className = 'fa-solid fa-triangle-exclamation text-2xl text-red-600';
+                title.textContent = `🚨 ¡Cuenta de ${u.nombre} Bloqueada por Seguridad!`;
+                desc.textContent = 'Se detectaron 3 intentos fallidos consecutivos de OTP. Acceso congelado temporalmente por 10 minutos.';
+                countdownBox.classList.remove('hidden');
+                const mins = lockedInfo ? lockedInfo.minutosRestantes : 10;
+                const secs = lockedInfo ? lockedInfo.segundosRestantes : 0;
+                countdownBox.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            } else {
+                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-[#C5DB9E]/30 border-[#88BD79]/50 text-[#195618]';
+                icon.className = 'fa-solid fa-circle-check text-2xl text-[#195618]';
+                title.textContent = `Sin Bloqueos Activos (${u.nombre})`;
+                desc.textContent = 'Acceso regular y validado al sistema.';
+                countdownBox.classList.add('hidden');
+            }
+        }
+    }
+
+    function poblarSelectorBloqueo(users) {
+        const select = document.getElementById('usuario-bloqueo');
+        if (!select) return;
+
+        const currentVal = select.value;
+        const userList = (users && users.length > 0) ? users : (window.usuariosRegistrados || defaultMainUsers);
+
+        select.innerHTML = '';
+        userList.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id_usuario;
+            const rolLabel = u.nombre_rol || u.rol || 'Cliente';
+            const estadoLabel = u.estado_cuenta === 'bloqueado' ? ' [BLOQUEADA]' : (u.suspendido || u.estado_cuenta === 'suspendido' ? ' [SUSPENDIDO]' : '');
+            opt.textContent = `${u.nombre} (${u.correo || u.email || 'sin-correo'}) - ${rolLabel}${estadoLabel}`;
+            select.appendChild(opt);
+        });
+
+        // Selección por defecto: mantener selección actual, o seleccionar usuario activo por defecto
+        if (currentVal && userList.some(u => u.id_usuario == currentVal)) {
+            select.value = currentVal;
+        } else {
+            const activeUserInList = userList.find(u => 
+                (currentUser.id_usuario && u.id_usuario == currentUser.id_usuario) ||
+                (currentUser.correo && u.correo && u.correo.toLowerCase() === currentUser.correo.toLowerCase()) ||
+                (u.nombre && u.nombre.toLowerCase().includes('administrador'))
+            );
+            if (activeUserInList) {
+                select.value = activeUserInList.id_usuario;
+            } else if (select.options.length > 0) {
+                select.selectedIndex = 0;
+            }
+        }
+
+        actualizarDetalleUsuarioBloqueo(select.value);
+    }
+
     async function checkSecurityStatus() {
         if (!isAdmin) return;
         try {
             const res = await fetch('/api/otp');
             const data = await res.json();
-            const banner = document.getElementById('securityBanner');
-            const icon = document.getElementById('securityIcon');
-            const title = document.getElementById('securityStatusTitle');
-            const desc = document.getElementById('securityStatusDesc');
-            const countdownBox = document.getElementById('lockCountdownBox');
+            
+            currentLockedUsersList = Array.isArray(data.lockedUsers) ? data.lockedUsers : [];
 
-            if (!banner) return;
+            // 1. Poblar Selector y Detalle
+            const users = window.usuariosRegistrados || defaultMainUsers;
+            poblarSelectorBloqueo(users);
 
-            if (data.lockState && data.lockState.locked) {
-                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-red-50 border-red-300 text-red-800';
-                icon.className = 'fa-solid fa-triangle-exclamation text-2xl text-red-600';
-                title.textContent = '🚨 ¡Cuenta Bloqueada por Seguridad!';
-                desc.textContent = 'Se detectaron 3 intentos fallidos consecutivos de OTP. Acceso congelado por 10 minutos.';
-                countdownBox.classList.remove('hidden');
-            } else {
-                banner.className = 'p-4 rounded-xl border flex items-center justify-between transition-all bg-emerald-50 border-emerald-200 text-emerald-800';
-                icon.className = 'fa-solid fa-circle-check text-2xl text-emerald-500';
-                title.textContent = 'Sin Bloqueos Activos';
-                desc.textContent = 'Acceso regular al sistema.';
-                countdownBox.classList.add('hidden');
+            // 2. Renderizar Tabla de Cuentas Bloqueadas
+            const tbody = document.getElementById('tbodyCuentasBloqueadas');
+            const badgeTotal = document.getElementById('badgeTotalBloqueados');
+
+            if (badgeTotal) {
+                badgeTotal.textContent = `${currentLockedUsersList.length} bloqueada${currentLockedUsersList.length === 1 ? '' : 's'}`;
+                if (currentLockedUsersList.length > 0) {
+                    badgeTotal.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-red-100 text-red-800 border border-red-200';
+                } else {
+                    badgeTotal.className = 'px-2.5 py-0.5 text-xs font-bold rounded-full bg-[#C5DB9E]/30 text-[#195618] border border-[#93A981]/50';
+                }
             }
-        } catch (e) {}
+
+            if (tbody) {
+                tbody.innerHTML = '';
+                if (currentLockedUsersList.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-5 py-8 text-center text-xs text-slate-400">
+                                <i class="fa-solid fa-circle-check text-[#195618] text-base mb-1 block"></i>
+                                No hay cuentas bloqueadas en este momento. Todos los accesos se encuentran regulares.
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    currentLockedUsersList.forEach(b => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-red-50/30 transition-all border-b border-slate-100';
+                        const initials = (b.nombre || 'US').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
+                        const fechaTxt = b.fecha_bloqueo ? new Date(b.fecha_bloqueo).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Reciente';
+                        const fechaDia = b.fecha_bloqueo ? new Date(b.fecha_bloqueo).toLocaleDateString() : '';
+
+                        tr.innerHTML = `
+                            <td class="px-5 py-3 font-bold text-slate-800">
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-7 h-7 rounded-full bg-red-100 text-red-700 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                                        ${initials}
+                                    </div>
+                                    <div class="truncate">
+                                        <p class="font-bold text-xs text-slate-800 leading-tight truncate">${b.nombre || 'Usuario'}</p>
+                                        <span class="text-[10px] text-slate-400 uppercase font-semibold">${b.rol || 'Cliente'}</span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3 text-xs font-mono text-slate-600">${b.correo || '-'}</td>
+                            <td class="px-5 py-3 text-xs text-slate-600">
+                                <span class="font-semibold text-slate-700">${fechaTxt}</span>
+                                <span class="text-[10px] text-slate-400 block">${fechaDia}</span>
+                            </td>
+                            <td class="px-5 py-3 text-center font-mono font-bold text-red-600 text-xs">
+                                <span class="ticker-restante" data-lock-until="${b.lockUntil}">
+                                    ${String(b.minutosRestantes).padStart(2, '0')}:${String(b.segundosRestantes).padStart(2, '0')}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3 text-center">
+                                <span class="px-2.5 py-1 text-[11px] font-bold rounded-full bg-red-100 text-red-800 border border-red-300">
+                                    Bloqueada
+                                </span>
+                            </td>
+                            <td class="px-5 py-3 text-center">
+                                <button type="button" class="btn-desbloquear-row px-3 py-1 bg-[#5E7824] hover:bg-[#4e641e] text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center space-x-1 mx-auto" data-id="${b.id_usuario}">
+                                    <i class="fa-solid fa-lock-open text-[10px]"></i>
+                                    <span>Desbloquear</span>
+                                </button>
+                            </td>
+                        `;
+
+                        tr.querySelector('.btn-desbloquear-row').addEventListener('click', () => {
+                            ejecutarDesbloqueoSeguridad(b.id_usuario);
+                        });
+
+                        tbody.appendChild(tr);
+                    });
+                }
+            }
+
+            // Iniciar intervalo de cuenta regresiva de 1 segundo si no está activo
+            if (!securityCountdownInterval) {
+                securityCountdownInterval = setInterval(() => {
+                    const now = new Date().getTime();
+                    let anyRemaining = false;
+
+                    document.querySelectorAll('.ticker-restante').forEach(el => {
+                        const lockUntilStr = el.getAttribute('data-lock-until');
+                        if (lockUntilStr) {
+                            const diff = Math.max(0, Math.ceil((new Date(lockUntilStr).getTime() - now) / 1000));
+                            const mins = Math.floor(diff / 60);
+                            const secs = diff % 60;
+                            el.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                            if (diff > 0) anyRemaining = true;
+                        }
+                    });
+
+                    // Actualizar caja de cuenta regresiva del banner si aplica
+                    const countdownBox = document.getElementById('lockCountdownBox');
+                    const select = document.getElementById('usuario-bloqueo');
+                    if (countdownBox && !countdownBox.classList.contains('hidden') && select) {
+                        const selId = select.value;
+                        const b = currentLockedUsersList.find(x => x.id_usuario == selId);
+                        if (b && b.lockUntil) {
+                            const diff = Math.max(0, Math.ceil((new Date(b.lockUntil).getTime() - now) / 1000));
+                            const mins = Math.floor(diff / 60);
+                            const secs = diff % 60;
+                            countdownBox.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+                        }
+                    }
+
+                    // Si se completaron los 10 min, refrescar estado
+                    if (currentLockedUsersList.length > 0 && !anyRemaining) {
+                        checkSecurityStatus();
+                        if (typeof window.cargarUsuarios === 'function') window.cargarUsuarios();
+                    }
+                }, 1000);
+            }
+
+        } catch (e) {
+            console.error('Error en checkSecurityStatus:', e);
+        }
     }
 
-    const btnSimular3Fallos = document.getElementById('btnSimular3Fallos');
-    if (btnSimular3Fallos) {
-        btnSimular3Fallos.addEventListener('click', async () => {
-            for (let i = 1; i <= 3; i++) {
-                await fetch('/api/otp/validar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ codigo: '000000' })
-                });
-            }
-            alert('🚨 Se registraron 3 fallos consecutivos. Sistema bloqueado durante 10 minutos.');
-            await checkSecurityStatus();
-            await fetchOtpHistory();
+    // Listener para cuando el usuario cambia el select de usuario objetivo
+    const selectUsuarioBloqueo = document.getElementById('usuario-bloqueo');
+    if (selectUsuarioBloqueo) {
+        selectUsuarioBloqueo.addEventListener('change', (e) => {
+            actualizarDetalleUsuarioBloqueo(e.target.value);
         });
     }
 
+    // Función auxiliar para desbloquear cuenta
+    async function ejecutarDesbloqueoSeguridad(targetId) {
+        try {
+            const res = await fetch('/api/otp/desbloquear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id_usuario: targetId ? parseInt(targetId) : undefined })
+            });
+            const data = await res.json();
+            if (data.success) {
+                // Actualizar en memoria local
+                if (window.usuariosRegistrados) {
+                    if (targetId) {
+                        const u = window.usuariosRegistrados.find(x => x.id_usuario == targetId);
+                        if (u) u.estado_cuenta = 'activo';
+                    } else {
+                        window.usuariosRegistrados.forEach(u => {
+                            if (u.estado_cuenta === 'bloqueado') u.estado_cuenta = 'activo';
+                        });
+                    }
+                }
+                alert('🔓 ' + (data.message || 'Cuenta desbloqueada exitosamente y restablecida a estado Activa.'));
+                await checkSecurityStatus();
+                await window.cargarUsuarios();
+                if (typeof fetchModerationData === 'function') await fetchModerationData();
+                if (typeof fetchOtpHistory === 'function') await fetchOtpHistory();
+            } else {
+                alert(data.message || 'Error al desbloquear cuenta.');
+            }
+        } catch (err) {
+            console.error('Error al desbloquear:', err);
+        }
+    }
+
+    // 3. ACCIONES DINÁMICAS: Botón Simular 3 Fallos
+    const btnSimular3Fallos = document.getElementById('btnSimular3Fallos');
+    if (btnSimular3Fallos) {
+        btnSimular3Fallos.addEventListener('click', async () => {
+            const select = document.getElementById('usuario-bloqueo');
+            const targetId = select && select.value ? select.value : (currentUser.id_usuario || 1);
+
+            try {
+                const res = await fetch('/api/otp/bloquear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id_usuario: parseInt(targetId) })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (window.usuariosRegistrados) {
+                        const u = window.usuariosRegistrados.find(x => x.id_usuario == targetId);
+                        if (u) u.estado_cuenta = 'bloqueado';
+                    }
+                    alert(`🚨 Se forzaron 3 fallos consecutivos de OTP.\nLa cuenta ha sido bloqueada temporalmente por 10 minutos y registrada como 'Bloqueada'.`);
+                    await checkSecurityStatus();
+                    await window.cargarUsuarios();
+                    if (typeof fetchModerationData === 'function') await fetchModerationData();
+                    if (typeof fetchOtpHistory === 'function') await fetchOtpHistory();
+                } else {
+                    alert(data.message || 'Error al forzar bloqueo de seguridad.');
+                }
+            } catch (err) {
+                console.error('Error al simular 3 fallos:', err);
+            }
+        });
+    }
+
+    // 3. ACCIONES DINÁMICAS: Botón Desbloquear Cuenta
     const btnDesbloquearAdmin = document.getElementById('btnDesbloquearAdmin');
     if (btnDesbloquearAdmin) {
         btnDesbloquearAdmin.addEventListener('click', async () => {
-            const res = await fetch('/api/otp/desbloquear', { method: 'POST' });
-            const data = await res.json();
-            alert(data.message || 'Desbloqueado.');
-            await checkSecurityStatus();
-            await fetchOtpHistory();
+            const select = document.getElementById('usuario-bloqueo');
+            const targetId = select && select.value ? select.value : null;
+            await ejecutarDesbloqueoSeguridad(targetId);
         });
     }
 
@@ -1554,10 +2108,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div>
                             <div class="flex justify-between text-xs font-bold text-slate-700 mb-1">
                                 <span>${v.mes} (${v.pedidos} órdenes)</span>
-                                <span class="text-emerald-600">$${v.total.toFixed(2)}</span>
+                                <span class="text-[#195618] font-extrabold">$${v.total.toFixed(2)}</span>
                             </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                <div class="bg-gradient-to-r from-emerald-500 to-cyan-500 h-2 rounded-full" style="width: ${pct}%"></div>
+                            <div class="w-full bg-[#C5DB9E]/20 rounded-full h-2 overflow-hidden border border-[#93A981]/30">
+                                <div class="bg-gradient-to-r from-[#195618] via-[#5C8754] to-[#88BD79] h-2 rounded-full" style="width: ${pct}%"></div>
                             </div>
                         </div>
                     `;
@@ -1571,11 +2125,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     catContainer.innerHTML += `
                         <div>
                             <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                                <span>${c.categoria}</span>
-                                <span class="font-bold">${c.porcentaje}%</span>
+                                <span class="font-bold text-[#195618]">${c.categoria}</span>
+                                <span class="font-bold text-[#5E7824]">${c.porcentaje}%</span>
                             </div>
-                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                <div class="bg-slate-800 h-2 rounded-full" style="width: ${c.porcentaje}%"></div>
+                            <div class="w-full bg-[#C5DB9E]/20 rounded-full h-2 overflow-hidden border border-[#93A981]/30">
+                                <div class="bg-[#5E7824] h-2 rounded-full" style="width: ${c.porcentaje}%"></div>
                             </div>
                         </div>
                     `;
@@ -1689,7 +2243,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let roleVal = '3';
         if (u.id_rol) roleVal = String(u.id_rol);
         else if (u.nombre_rol === 'Administrador' || u.rol === 'Administrador') roleVal = '1';
-        else if (u.nombre_rol === 'Vendedor' || u.rol === 'Vendedor') roleVal = '2';
+        else if (u.nombre_rol === 'Socio' || u.rol === 'Socio' || u.nombre_rol === 'Vendedor' || u.rol === 'Vendedor') roleVal = '2';
         document.getElementById('edit_user_ctrl_rol').value = roleVal;
 
         modalEditarUserControl.classList.add('active');
@@ -1711,7 +2265,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const nombre = document.getElementById('edit_user_ctrl_nombre').value.trim();
             const correo = document.getElementById('edit_user_ctrl_correo').value.trim();
             const id_rol = document.getElementById('edit_user_ctrl_rol').value;
-            const rolName = id_rol === '1' ? 'Administrador' : (id_rol === '2' ? 'Vendedor' : 'Cliente');
+            const rolName = id_rol === '1' ? 'Administrador' : (id_rol === '2' ? 'Socio' : 'Cliente');
 
             if (!nombre || !correo) {
                 return alert('Nombre y correo son requeridos.');
@@ -1775,16 +2329,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     tr.className = 'border-b border-slate-100 transition-all hover:bg-slate-50/50';
                     tr.innerHTML = `
                         <td class="px-6 py-3.5 font-bold text-slate-800">${p.titulo}</td>
-                        <td class="px-6 py-3.5 font-semibold text-emerald-600">$${parseFloat(p.precio).toFixed(2)}</td>
+                        <td class="px-6 py-3.5 font-semibold text-[#195618]">$${parseFloat(p.precio).toFixed(2)}</td>
                         <td class="px-6 py-3.5">${p.stock}</td>
                         <td class="px-6 py-3.5">
-                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]'}">
                                 ${isSuspended ? 'Suspendido' : 'Aprobado'}
                             </span>
                         </td>
                         <td class="px-6 py-3.5 text-center">
                             <div class="inline-flex space-x-1.5">
-                                <button type="button" class="btn-edit-prod-ctrl px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all flex items-center space-x-1">
+                                <button type="button" class="btn-edit-prod-ctrl px-2.5 py-1 text-xs font-bold rounded-lg bg-[#A8C1A0]/30 text-[#195618] border border-[#93A981]/50 hover:bg-[#A8C1A0]/60 transition-all flex items-center space-x-1">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                     <span>Editar</span>
                                 </button>
@@ -1822,21 +2376,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 uTbody.innerHTML = '';
                 const users = (uResult.success && Array.isArray(uResult.data)) ? uResult.data : [];
                 users.forEach(u => {
-                    const isSuspended = u.suspendido || u.estado_cuenta === 'suspendido';
+                    const isBlocked = (u.estado_cuenta === 'bloqueado');
+                    const isSuspended = !isBlocked && (u.suspendido || u.estado_cuenta === 'suspendido');
                     const tr = document.createElement('tr');
-                    tr.className = 'border-b border-slate-100 transition-all hover:bg-slate-50/50';
+                    tr.className = `border-b border-slate-100 transition-all hover:bg-slate-50/50 ${isBlocked ? 'bg-red-50/30' : ''}`;
                     tr.innerHTML = `
                         <td class="px-6 py-3.5 font-bold text-slate-800">${u.nombre}</td>
                         <td class="px-6 py-3.5 text-xs text-slate-600">${u.correo}</td>
                         <td class="px-6 py-3.5"><span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">${u.nombre_rol || 'Cliente'}</span></td>
                         <td class="px-6 py-3.5">
-                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}">
-                                ${isSuspended ? 'Suspendido' : 'Activa'}
+                            <span class="px-2.5 py-1 text-xs font-bold rounded-full ${isBlocked ? 'bg-red-100 text-red-800 border border-red-300' : (isSuspended ? 'bg-amber-50 text-amber-800 border border-amber-300' : 'bg-[#9BBB54]/25 text-[#195618] border border-[#9BBB54]')}">
+                                ${isBlocked ? 'Bloqueada' : (isSuspended ? 'Suspendido' : 'Activa')}
                             </span>
                         </td>
                         <td class="px-6 py-3.5 text-center">
                             <div class="inline-flex space-x-1.5">
-                                <button type="button" class="btn-edit-user-ctrl px-2.5 py-1 text-xs font-bold rounded-lg bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all flex items-center space-x-1">
+                                <button type="button" class="btn-edit-user-ctrl px-2.5 py-1 text-xs font-bold rounded-lg bg-[#A8C1A0]/30 text-[#195618] border border-[#93A981]/50 hover:bg-[#A8C1A0]/60 transition-all flex items-center space-x-1">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                     <span>Editar</span>
                                 </button>
@@ -1917,7 +2472,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Inicialización y carga automática de datos
-    renderCompraView();
     loadAllData();
-    goHomeForRole();
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedTab = urlParams.get('tab') || window.location.hash.replace('#', '');
+    if (requestedTab && document.getElementById(requestedTab)) {
+        switchTab(requestedTab);
+    } else {
+        goHomeForRole();
+    }
 });
