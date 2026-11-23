@@ -2843,15 +2843,22 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!m) return;
         ultimasMetricasCargadas = m;
 
-        // 1. KPI Cards principales
+        // 1. KPI Cards principales (con valores reales de PostgreSQL)
         const elU = document.getElementById('kpiUsuarios');
         const elP = document.getElementById('kpiProductos');
         const elPed = document.getElementById('kpiPedidos');
         const elIng = document.getElementById('kpiIngresos');
-        if (elU) elU.textContent = m.totalUsuarios || '4';
-        if (elP) elP.textContent = m.totalProductos || '6';
-        if (elPed) elPed.textContent = m.totalPedidos || '12';
+        if (elU) elU.textContent = (m.totalUsuarios !== undefined && m.totalUsuarios !== null) ? m.totalUsuarios : '0';
+        if (elP) elP.textContent = (m.totalProductos !== undefined && m.totalProductos !== null) ? m.totalProductos : '0';
+        if (elPed) elPed.textContent = (m.totalPedidos !== undefined && m.totalPedidos !== null) ? m.totalPedidos : '0';
         if (elIng) elIng.textContent = `$${parseFloat(m.ingresosTotales || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+
+        // Ajustar etiqueta de la primera tarjeta según el rol (Clientes para Socio, Usuarios para Administrador)
+        const isUserSocio = (typeof isSocio !== 'undefined' && isSocio) || (currentUser && (currentUser.rol === 'Socio' || (currentUser.nombre_rol || '').toLowerCase().includes('socio')));
+        const cardUsuariosLabel = document.querySelector('#card-usuarios span');
+        if (cardUsuariosLabel) {
+            cardUsuariosLabel.textContent = isUserSocio ? 'Clientes' : 'Usuarios';
+        }
 
         // Destruir instancias previas de Chart.js para evitar encimado o canvases en blanco
         destroyExecutiveCharts();
@@ -2867,9 +2874,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const repTotalSem = document.getElementById('repTotalSemana');
         const repCrecSem = document.getElementById('repCrecimientoSemana');
         const repPedSem = document.getElementById('repPedidosSemana');
-        if (repTotalSem) repTotalSem.textContent = `$${parseFloat(m.totalSemana || 6380).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
-        if (repCrecSem) repCrecSem.textContent = `${m.crecimientoSemanal || '+16.8%'} vs ant.`;
-        if (repPedSem) repPedSem.textContent = `${m.totalPedidosSemana || 40} pedidos`;
+        if (repTotalSem) repTotalSem.textContent = `$${parseFloat(m.totalSemana || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+        if (repCrecSem) repCrecSem.textContent = `${m.crecimientoSemanal || '+0%'} vs ant.`;
+        if (repPedSem) repPedSem.textContent = `${m.totalPedidosSemana || 0} pedidos`;
 
         const ctx1 = document.getElementById('chartVentasSemanales')?.getContext('2d');
         if (ctx1 && m.ventasSemanales) {
@@ -2962,7 +2969,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const elTopCat = document.getElementById('repTopCategoria');
             const elTopCatPct = document.getElementById('repTopCatPorcentaje');
             if (elTopCat && topCat) elTopCat.textContent = topCat.categoria;
-            if (elTopCatPct && topCat) elTopCatPct.textContent = `${topCat.porcentaje || 35}% del total`;
+            if (elTopCatPct && topCat) elTopCatPct.textContent = `${topCat.porcentaje || 0}% del total`;
 
             const ctx2 = document.getElementById('chartVentasCategorias')?.getContext('2d');
             if (ctx2) {
@@ -3014,7 +3021,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // REPORTE 3: Rendimiento por Socio / Equipo de Ventas (Barras Horizontales)
         // =========================================================================
         let sociosData = Array.isArray(m.rendimientoSocios) ? [...m.rendimientoSocios] : [];
-        const isUserSocio = (typeof isSocio !== 'undefined' && isSocio) || (currentUser && (currentUser.rol === 'Socio' || (currentUser.nombre_rol || '').toLowerCase().includes('socio')));
 
         if (isUserSocio) {
             const userSocioNum = currentUser.numero_socio;
@@ -3147,7 +3153,15 @@ document.addEventListener('DOMContentLoaded', () => {
     async function fetchAdminMetrics() {
         if (!isAdmin && !isSocio) return;
         try {
-            const res = await fetch('/api/admin/metricas');
+            const rol = currentUser?.nombre_rol || currentUser?.rol || (isAdmin ? 'Administrador' : (isSocio ? 'Socio' : 'Cliente'));
+            const userId = currentUser?.id_usuario || '';
+            const numSocio = currentUser?.numero_socio || '';
+            const queryParams = new URLSearchParams({
+                rol: rol,
+                usuario_id: userId,
+                numero_socio: numSocio
+            });
+            const res = await fetch(`/api/admin/metricas?${queryParams.toString()}`);
             const result = await res.json();
             if (!result.success || !result.data) return;
             renderExecutiveReports(result.data);
