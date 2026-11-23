@@ -124,11 +124,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Aplicar visibilidad granular de pestañas según el rol
     function applyRoleRestrictions() {
         tabs.forEach(tab => {
+            const targetId = tab.getAttribute('data-target');
             const rawRoles = tab.getAttribute('data-roles') || 'admin,socio,cliente';
             const allowedRoles = rawRoles.split(',').map(r => r.trim().toLowerCase());
             
-            const isAllowed = allowedRoles.includes(userRoleKey) || 
+            let isAllowed = allowedRoles.includes(userRoleKey) || 
                               (userRoleKey === 'socio' && allowedRoles.includes('vendedor'));
+
+            // Ajuste 1: Si rol === 'Administrador', ocultar el botón/enlace Compra (mod_detalle)
+            if (isAdmin && targetId === 'mod_detalle') {
+                isAllowed = false;
+            }
 
             if (!isAllowed) {
                 tab.classList.add('hidden');
@@ -161,6 +167,13 @@ document.addEventListener('DOMContentLoaded', () => {
         tab.addEventListener('click', (e) => {
             e.preventDefault();
             const targetId = tab.getAttribute('data-target');
+
+            // Ajuste 1: Si es Administrador e intenta abrir Compra, redirigir a Catálogo
+            if (isAdmin && targetId === 'mod_detalle') {
+                switchTab('mod_catalogo');
+                return;
+            }
+
             const rawRoles = tab.getAttribute('data-roles') || 'admin,socio,cliente';
             const allowedRoles = rawRoles.split(',').map(r => r.trim().toLowerCase());
 
@@ -189,6 +202,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     window.switchTab = function(targetId) {
         if (!targetId) return;
+
+        // Ajuste 1: Si es Administrador e intenta abrir Compra (mod_detalle), redirigir a Catálogo
+        if (isAdmin && targetId === 'mod_detalle') {
+            targetId = 'mod_catalogo';
+        }
 
         if (accessDeniedBanner) accessDeniedBanner.classList.add('hidden');
         if (mainModulesContainer) mainModulesContainer.classList.remove('hidden');
@@ -1491,6 +1509,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         switchTab('mod_detalle');
                         renderizarCompra();
                     });
+                }
+                if (isAdmin) {
+                    card.querySelector('.btn-comprar-prod')?.classList.add('hidden');
                 }
                 if (isCliente) {
                     card.querySelector('.btn-editar-prod')?.classList.add('hidden');

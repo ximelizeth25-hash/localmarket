@@ -1,7 +1,7 @@
 /**
  * Controlador de Métricas y Administración (Módulo 9)
  * Genera métricas ejecutivas y datos analíticos respaldados en PostgreSQL
- * Segmentado por rol: Administrador (Global) vs Socio (Individual)
+ * Segmentado por cadena de suministro: Administrador -> Socios -> Clientes
  */
 
 const db = require('../config/db');
@@ -53,7 +53,7 @@ async function getMetricas(req, res, next) {
         // 1. KPI Counts
         try {
             if (isSocio) {
-                // Tarjeta 1 (Clientes): cuenta ÚNICAMENTE los clientes atendidos por ese socio o que le hayan comprado productos (id_rol = 3 vinculados al socio)
+                // Tarjeta 1 (Clientes): cuenta ÚNICAMENTE los clientes atendidos por ese socio (id_rol = 3 vinculados al socio)
                 const uCliRes = await db.query(`
                     SELECT COUNT(DISTINCT u.id_usuario) as count 
                     FROM USUARIOS u 
@@ -73,20 +73,15 @@ async function getMetricas(req, res, next) {
                 const pRes = await db.query('SELECT COUNT(*) as count FROM PRODUCTOS WHERE id_vendedor = $1', [userId || -1]);
                 if (pRes.rows[0]) totalProductos = parseInt(pRes.rows[0].count) || 0;
 
-                // Tarjetas 3 (Pedidos) y 4 (Ingresos): calcula ÚNICAMENTE los pedidos y ventas generados por ese socio:
-                // a) comprador_id = usuario_id (compras para surtirse), Y
-                // b) ventas a sus clientes (numero_socio_atencion = numSocio Y u.id_rol = 3)
-                // PROHIBIDO incluir pedidos del Administrador (u.id_rol = 1) u otros socios
+                // Tarjetas 3 (Pedidos) y 4 (Ingresos): calcula ÚNICAMENTE sus ventas e ingresos reales a Clientes (numero_socio_atencion = numSocio Y u.id_rol = 3)
                 const pedRes = await db.query(`
                     SELECT COUNT(*) as count, COALESCE(SUM(pv.total), 0) as total_sum 
                     FROM PEDIDOS_VENTAS pv 
-                    LEFT JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
+                    JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
                     WHERE pv.estado != 'Cancelado' 
-                      AND (
-                        (pv.id_comprador = $1)
-                        OR (pv.numero_socio_atencion = $2 AND u.id_rol = 3)
-                      )
-                `, [userId || -1, numSocio || -1]);
+                      AND pv.numero_socio_atencion = $1 
+                      AND u.id_rol = 3
+                `, [numSocio || -1]);
                 if (pedRes.rows[0]) {
                     totalPedidos = parseInt(pedRes.rows[0].count) || 0;
                     ingresosTotales = parseFloat(pedRes.rows[0].total_sum) || 0;
@@ -96,7 +91,7 @@ async function getMetricas(req, res, next) {
                 const lowRes = await db.query('SELECT COUNT(*) as count FROM PRODUCTOS WHERE id_vendedor = $1 AND stock <= 5', [userId || -1]);
                 if (lowRes.rows[0]) stockBajoCount = parseInt(lowRes.rows[0].count) || 0;
             } else {
-                // Modo Administrador (Global / Gestión Administrativa)
+                // Modo Administrador: calcula ventas e ingresos reales con base en los pedidos de surtido que los Socios le hacen al Administrador (u.id_rol = 2)
                 const uRes = await db.query('SELECT COUNT(*) as count FROM USUARIOS');
                 if (uRes.rows[0]) totalUsuarios = parseInt(uRes.rows[0].count) || 0;
 
@@ -106,20 +101,9 @@ async function getMetricas(req, res, next) {
                 const pedRes = await db.query(`
                     SELECT COUNT(*) as count, COALESCE(SUM(pv.total), 0) as total_sum 
                     FROM PEDIDOS_VENTAS pv
-                    LEFT JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
-                    WHERE pv.estado != 'Cancelado'
-                      AND (
-                        (u.id_rol = 1) 
-                        OR (u.id_rol = 2) 
-                        OR (pv.numero_socio_atencion IS NULL) 
-                        OR (pv.id_pedido IN (
-                            SELECT dp.id_pedido 
-                            FROM detalle_pedidos dp 
-                            JOIN productos pr ON dp.id_producto = pr.id_producto 
-                            WHERE pr.id_vendedor = $1
-                        ))
-                      )
-                `, [userId || 1]);
+                    JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
+                    WHERE pv.estado != 'Cancelado' AND u.id_rol = 2
+                `);
                 if (pedRes.rows[0]) {
                     totalPedidos = parseInt(pedRes.rows[0].count) || 0;
                     ingresosTotales = parseFloat(pedRes.rows[0].total_sum) || 0;
@@ -145,15 +129,13 @@ async function getMetricas(req, res, next) {
                         COUNT(*) as pedidos,
                         COALESCE(SUM(pv.total), 0) as ingresos
                     FROM PEDIDOS_VENTAS pv
-                    LEFT JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
-                    WHERE pv.estado != 'Cancelado'
-                      AND (
-                        (pv.id_comprador = $1)
-                        OR (pv.numero_socio_atencion = $2 AND u.id_rol = 3)
-                      )
+                    JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
+                    WHERE pv.estado != 'Cancelado' 
+                      AND pv.numero_socio_atencion = $1 
+                      AND u.id_rol = 3
                     GROUP BY num_dia
                     ORDER BY num_dia ASC
-                `, [userId || -1, numSocio || -1]);
+                `, [numSocio || -1]);
             } else {
                 qSemanal = await db.query(`
                     SELECT 
@@ -161,22 +143,11 @@ async function getMetricas(req, res, next) {
                         COUNT(*) as pedidos,
                         COALESCE(SUM(pv.total), 0) as ingresos
                     FROM PEDIDOS_VENTAS pv
-                    LEFT JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
-                    WHERE pv.estado != 'Cancelado'
-                      AND (
-                        (u.id_rol = 1) 
-                        OR (u.id_rol = 2) 
-                        OR (pv.numero_socio_atencion IS NULL) 
-                        OR (pv.id_pedido IN (
-                            SELECT dp.id_pedido 
-                            FROM detalle_pedidos dp 
-                            JOIN productos pr ON dp.id_producto = pr.id_producto 
-                            WHERE pr.id_vendedor = $1
-                        ))
-                      )
+                    JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
+                    WHERE pv.estado != 'Cancelado' AND u.id_rol = 2
                     GROUP BY num_dia
                     ORDER BY num_dia ASC
-                `, [userId || 1]);
+                `);
             }
 
             if (qSemanal.rows && qSemanal.rows.length > 0) {
@@ -221,13 +192,12 @@ async function getMetricas(req, res, next) {
                     LEFT JOIN PEDIDOS_VENTAS pv ON dp.id_pedido = pv.id_pedido AND pv.estado != 'Cancelado'
                     LEFT JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
                     WHERE (
-                        p.id_vendedor = $1
-                        OR (pv.numero_socio_atencion = $2 AND u.id_rol = 3)
-                        OR (pv.id_comprador = $1)
+                        p.id_vendedor = $2
+                        OR (pv.numero_socio_atencion = $1 AND u.id_rol = 3)
                     )
                     GROUP BY c.nombre
                     ORDER BY ingresos DESC, productos_count DESC
-                `, [userId || -1, numSocio || -1]);
+                `, [numSocio || -1, userId || -1]);
             } else {
                 qCat = await db.query(`
                     SELECT 
@@ -240,21 +210,10 @@ async function getMetricas(req, res, next) {
                     LEFT JOIN DETALLE_PEDIDOS dp ON p.id_producto = dp.id_producto
                     LEFT JOIN PEDIDOS_VENTAS pv ON dp.id_pedido = pv.id_pedido AND pv.estado != 'Cancelado'
                     LEFT JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
-                    WHERE (
-                        (u.id_rol = 1) 
-                        OR (u.id_rol = 2) 
-                        OR (pv.numero_socio_atencion IS NULL) 
-                        OR (pv.id_pedido IN (
-                            SELECT dp.id_pedido 
-                            FROM detalle_pedidos dp 
-                            JOIN productos pr ON dp.id_producto = pr.id_producto 
-                            WHERE pr.id_vendedor = $1
-                        ))
-                        OR pv.id_pedido IS NULL
-                    )
+                    WHERE (u.id_rol = 2 OR pv.id_pedido IS NULL)
                     GROUP BY c.nombre
                     ORDER BY ingresos DESC, productos_count DESC
-                `, [userId || 1]);
+                `);
             }
 
             if (qCat.rows && qCat.rows.length > 0) {
@@ -286,7 +245,7 @@ async function getMetricas(req, res, next) {
         let rendimientoSocios = [];
         try {
             if (isSocio) {
-                // Gráfica de Rendimiento por Socio: muestra únicamente la barra de desempeño de ese socio actual con sus pedidos y facturación real
+                // Gráfica de Rendimiento por Socio: muestra únicamente la barra de desempeño de ese socio actual con sus ventas reales a clientes
                 rendimientoSocios = [
                     {
                         id_usuario: userId,
@@ -310,27 +269,25 @@ async function getMetricas(req, res, next) {
 
                 const qPedSocio = await db.query(`
                     SELECT 
-                        pv.numero_socio_atencion,
+                        pv.id_comprador,
                         COUNT(*) as pedidos,
                         COALESCE(SUM(pv.total), 0) as monto
                     FROM PEDIDOS_VENTAS pv
-                    LEFT JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
-                    WHERE pv.estado != 'Cancelado' 
-                      AND pv.numero_socio_atencion IS NOT NULL
-                      AND u.id_rol = 3
-                    GROUP BY pv.numero_socio_atencion
+                    JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
+                    WHERE pv.estado != 'Cancelado' AND u.id_rol = 2
+                    GROUP BY pv.id_comprador
                 `);
 
                 const pedMap = {};
                 qPedSocio.rows.forEach(r => {
-                    pedMap[r.numero_socio_atencion] = {
+                    pedMap[r.id_comprador] = {
                         pedidos: parseInt(r.pedidos) || 0,
                         monto: parseFloat(r.monto) || 0
                     };
                 });
 
                 rendimientoSocios = qSocios.rows.map(s => {
-                    const stats = pedMap[s.numero_socio];
+                    const stats = pedMap[s.id_usuario];
                     return {
                         id_usuario: s.id_usuario,
                         numero_socio: s.numero_socio,
@@ -367,31 +324,18 @@ async function getMetricas(req, res, next) {
                 qEst = await db.query(`
                     SELECT pv.estado, COUNT(*) as cantidad
                     FROM PEDIDOS_VENTAS pv
-                    LEFT JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
-                    WHERE (
-                        (pv.id_comprador = $1)
-                        OR (pv.numero_socio_atencion = $2 AND u.id_rol = 3)
-                    )
+                    JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
+                    WHERE pv.numero_socio_atencion = $1 AND u.id_rol = 3
                     GROUP BY pv.estado
-                `, [userId || -1, numSocio || -1]);
+                `, [numSocio || -1]);
             } else {
                 qEst = await db.query(`
                     SELECT pv.estado, COUNT(*) as cantidad
                     FROM PEDIDOS_VENTAS pv
-                    LEFT JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
-                    WHERE (
-                        (u.id_rol = 1) 
-                        OR (u.id_rol = 2) 
-                        OR (pv.numero_socio_atencion IS NULL) 
-                        OR (pv.id_pedido IN (
-                            SELECT dp.id_pedido 
-                            FROM detalle_pedidos dp 
-                            JOIN productos pr ON dp.id_producto = pr.id_producto 
-                            WHERE pr.id_vendedor = $1
-                        ))
-                    )
+                    JOIN USUARIOS u ON pv.id_comprador = u.id_usuario
+                    WHERE u.id_rol = 2
                     GROUP BY pv.estado
-                `, [userId || 1]);
+                `);
             }
 
             if (qEst.rows && qEst.rows.length > 0) {

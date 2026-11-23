@@ -117,17 +117,9 @@ async function getAllPedidos(req, res, next) {
             sql += ` WHERE (p.id_comprador = $1) OR (p.numero_socio_atencion = $2 AND u.id_rol = 3)`;
             params.push(userId || -1, numSocio || -1);
         } else {
-            // Administrador: muestra pedidos realizados por Socios (u.id_rol = 2) o donde el vendedor sea el Administrador (u.id_rol = 1, p.numero_socio_atencion IS NULL o id_vendedor = 1)
-            sql += ` WHERE (u.id_rol = 1) 
-                        OR (u.id_rol = 2) 
-                        OR (p.numero_socio_atencion IS NULL) 
-                        OR (p.id_pedido IN (
-                            SELECT dp.id_pedido 
-                            FROM detalle_pedidos dp 
-                            JOIN productos pr ON dp.id_producto = pr.id_producto 
-                            WHERE pr.id_vendedor = $1
-                        ))`;
-            params.push(userId || 1);
+            // Administrador: muestra pedidos realizados por usuarios con rol = 'Socio' (u.id_rol = 2)
+            // (las órdenes de surtido que los Socios le hacen al Administrador) para despachar y cambiar estados
+            sql += ` WHERE u.id_rol = 2`;
         }
 
         sql += ` ORDER BY p.id_pedido DESC`;
