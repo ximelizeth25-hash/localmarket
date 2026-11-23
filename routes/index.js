@@ -33,6 +33,7 @@ router.use('/pedidos_ventas', pedidosRoutes);
 router.use('/pedidos', pedidosRoutes);
 router.use('/otp', otpRoutes);
 router.use('/admin', adminRoutes);
+router.use('/reportes', adminRoutes);
 router.use('/categorias', categoriasRoutes);
 router.use('/direcciones', direccionesRoutes);
 router.use('/roles', rolesRoutes);

@@ -35,14 +35,37 @@ let fallbackOrders = [
 ];
 
 async function getAllPedidos(req, res, next) {
-    const numSocioFilter = req.query.numero_socio ? parseInt(req.query.numero_socio) : null;
+    const rolParam = (req.query.rol || req.headers['x-user-role'] || '').trim().toLowerCase();
+    let userId = req.query.usuario_id || req.headers['x-user-id'] ? parseInt(req.query.usuario_id || req.headers['x-user-id']) : null;
+    let numSocio = req.query.numero_socio || req.headers['x-numero-socio'] ? parseInt(req.query.numero_socio || req.headers['x-numero-socio']) : null;
+
+    const isAdmin = rolParam.includes('admin') || rolParam === '1' || (!rolParam && !userId && !numSocio);
+    const isSocio = !isAdmin && (rolParam.includes('socio') || rolParam.includes('vendedor') || rolParam === '2' || (numSocio && !userId));
+    const isCliente = !isAdmin && !isSocio;
 
     try {
+        if (isSocio) {
+            // Resolver id_usuario y numero_socio en la base de datos si falta alguno
+            if (userId || numSocio) {
+                try {
+                    const uRes = await db.query(
+                        'SELECT id_usuario, numero_socio FROM USUARIOS WHERE id_usuario = $1 OR numero_socio = $2 LIMIT 1',
+                        [userId || -1, numSocio || -1]
+                    );
+                    if (uRes.rows.length > 0) {
+                        userId = uRes.rows[0].id_usuario;
+                        numSocio = uRes.rows[0].numero_socio || numSocio;
+                    }
+                } catch (_) {}
+            }
+        }
+
         let sql = `
             SELECT p.id_pedido, p.id_comprador, p.fecha_pedido, p.total, p.estado, 
                    COALESCE(p.numero_socio_atencion, 1) as numero_socio_atencion,
                    COALESCE(u.nombre, 'Cliente General') as comprador_nombre,
                    COALESCE(u.telefono, '5500000000') as comprador_telefono,
+                   COALESCE(u.id_rol, 3) as comprador_rol,
                    COALESCE(p.direccion_entrega, dir.calle_numero || ', ' || dir.colonia, 'Av. Central #500, Centro') as direccion_entrega,
                    COALESCE(
                        (
@@ -82,28 +105,38 @@ async function getAllPedidos(req, res, next) {
         `;
         let params = [];
 
-        if (numSocioFilter) {
-            sql += ` WHERE p.numero_socio_atencion = $1 OR p.numero_socio_atencion IS NULL`;
-            params.push(numSocioFilter);
+        if (isCliente) {
+            // Cliente: ve ÚNICAMENTE los pedidos donde comprador_id = usuario_id
+            sql += ` WHERE p.id_comprador = $1`;
+            params.push(userId || -1);
+        } else if (isSocio) {
+            // Socio: ve ÚNICAMENTE:
+            // a) Los pedidos donde comprador_id = usuario_id (compras para surtirse), Y
+            // b) Los pedidos realizados por Clientes asignados a ese Socio (numero_socio_atencion = numSocio AND u.id_rol = 3)
+            // PROHIBIDO devolver pedidos donde el comprador sea Administrador (u.id_rol = 1) u otro Socio distinto
+            sql += ` WHERE (p.id_comprador = $1) OR (p.numero_socio_atencion = $2 AND u.id_rol = 3)`;
+            params.push(userId || -1, numSocio || -1);
+        } else {
+            // Administrador: muestra pedidos realizados por Socios (u.id_rol = 2) o donde el vendedor sea el Administrador (u.id_rol = 1, p.numero_socio_atencion IS NULL o id_vendedor = 1)
+            sql += ` WHERE (u.id_rol = 1) 
+                        OR (u.id_rol = 2) 
+                        OR (p.numero_socio_atencion IS NULL) 
+                        OR (p.id_pedido IN (
+                            SELECT dp.id_pedido 
+                            FROM detalle_pedidos dp 
+                            JOIN productos pr ON dp.id_producto = pr.id_producto 
+                            WHERE pr.id_vendedor = $1
+                        ))`;
+            params.push(userId || 1);
         }
 
         sql += ` ORDER BY p.id_pedido DESC`;
 
         const result = await db.query(sql, params);
-
-        if (result.rows.length === 0) {
-            const filteredFallback = numSocioFilter 
-                ? fallbackOrders.filter(o => o.numero_socio_atencion === numSocioFilter) 
-                : fallbackOrders;
-            return res.status(200).json({ success: true, data: filteredFallback });
-        }
-        return res.status(200).json({ success: true, data: result.rows });
+        return res.status(200).json({ success: true, data: result.rows || [] });
     } catch (err) {
         console.warn('DB Fallback en getAllPedidos:', err.message);
-        const filteredFallback = numSocioFilter 
-            ? fallbackOrders.filter(o => o.numero_socio_atencion === numSocioFilter) 
-            : fallbackOrders;
-        return res.status(200).json({ success: true, message: 'Fallback local', data: filteredFallback });
+        return res.status(200).json({ success: true, message: 'Fallback local', data: [] });
     }
 }
 

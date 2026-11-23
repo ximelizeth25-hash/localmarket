@@ -2159,11 +2159,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     window.cargarPedidos = async function cargarPedidos() {
         try {
-            let url = '/api/pedidos_ventas';
-            if (isSocio && currentUser && currentUser.numero_socio) {
-                url += `?numero_socio=${currentUser.numero_socio}`;
-            }
-            const res = await fetch(url);
+            const userRole = currentUser?.nombre_rol || currentUser?.rol || (isAdmin ? 'Administrador' : (isSocio ? 'Socio' : 'Cliente'));
+            const userId = currentUser?.id_usuario || currentUser?.id || '';
+            const numSocio = currentUser?.numero_socio || '';
+            const queryParams = new URLSearchParams({
+                rol: userRole,
+                usuario_id: userId,
+                numero_socio: numSocio
+            });
+            const url = `/api/pedidos?${queryParams.toString()}`;
+            const res = await fetch(url, {
+                headers: {
+                    'x-user-role': userRole,
+                    'x-user-id': String(userId),
+                    'x-numero-socio': String(numSocio)
+                }
+            });
             const result = await res.json();
             const tbody = document.querySelector('#tablaPedidosMaster tbody');
             if (!tbody) return;
@@ -2172,16 +2183,18 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.success && Array.isArray(result.data) && result.data.length > 0) {
                 let orders = result.data;
 
-                // Si el rol es Cliente, ve únicamente sus compras; Socio ve las de su numero_socio; Admin ve todas
+                // Aislamiento defensivo en cliente según rol:
                 if (isCliente && currentUser) {
                     orders = orders.filter(order => {
                         const matchId = currentUser.id_usuario && Number(order.id_comprador) === Number(currentUser.id_usuario);
                         const matchNombre = currentUser.nombre && order.comprador_nombre && order.comprador_nombre.toLowerCase().trim() === currentUser.nombre.toLowerCase().trim();
                         return matchId || matchNombre;
                     });
-                } else if (isSocio && currentUser && currentUser.numero_socio) {
+                } else if (isSocio && currentUser) {
                     orders = orders.filter(order => {
-                        return Number(order.numero_socio_atencion) === Number(currentUser.numero_socio);
+                        const esSuCompra = currentUser.id_usuario && Number(order.id_comprador) === Number(currentUser.id_usuario);
+                        const esDeSuCliente = currentUser.numero_socio && Number(order.numero_socio_atencion) === Number(currentUser.numero_socio) && Number(order.comprador_rol) === 3;
+                        return esSuCompra || esDeSuCliente;
                     });
                 }
 
@@ -3154,14 +3167,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isAdmin && !isSocio) return;
         try {
             const rol = currentUser?.nombre_rol || currentUser?.rol || (isAdmin ? 'Administrador' : (isSocio ? 'Socio' : 'Cliente'));
-            const userId = currentUser?.id_usuario || '';
+            const userId = currentUser?.id_usuario || currentUser?.id || '';
             const numSocio = currentUser?.numero_socio || '';
             const queryParams = new URLSearchParams({
                 rol: rol,
                 usuario_id: userId,
                 numero_socio: numSocio
             });
-            const res = await fetch(`/api/admin/metricas?${queryParams.toString()}`);
+            const res = await fetch(`/api/reportes?${queryParams.toString()}`, {
+                headers: {
+                    'x-user-role': rol,
+                    'x-user-id': String(userId),
+                    'x-numero-socio': String(numSocio)
+                }
+            });
             const result = await res.json();
             if (!result.success || !result.data) return;
             renderExecutiveReports(result.data);
