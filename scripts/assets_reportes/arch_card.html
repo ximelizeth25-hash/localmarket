@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0F172A;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 24px;
+    color: #F8FAFC;
+    width: 1200px;
+    height: 600px;
+  }
+  .window {
+    background: #1E293B;
+    border-radius: 14px;
+    border: 1px solid #334155;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .titlebar {
+    background: #0F172A;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #334155;
+  }
+  .dots { display: flex; gap: 8px; margin-right: 16px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-red { background: #EF4444; }
+  .dot-yellow { background: #F59E0B; }
+  .dot-green { background: #10B981; }
+  .window-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #94A3B8;
+    letter-spacing: 0.5px;
+  }
+  .content {
+    padding: 24px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .header-desc {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+  .header-desc h2 {
+    font-size: 17px;
+    color: #38BDF8;
+    font-weight: 700;
+  }
+  .badge {
+    background: #1B4332;
+    color: #52B788;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid #2D6A4F;
+  }
+  .tiers-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+  .tier-card {
+    background: #0F172A;
+    border-radius: 10px;
+    border: 1px solid #334155;
+    padding: 16px;
+    position: relative;
+  }
+  .tier-card.admin { border-top: 4px solid #10B981; }
+  .tier-card.socio { border-top: 4px solid #38BDF8; }
+  .tier-card.cliente { border-top: 4px solid #F59E0B; }
+  .tier-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .tier-card.admin .tier-title { color: #10B981; }
+  .tier-card.socio .tier-title { color: #38BDF8; }
+  .tier-card.cliente .tier-title { color: #F59E0B; }
+  .tier-role { font-size: 11px; color: #94A3B8; margin-bottom: 8px; }
+  .tier-metric {
+    background: rgba(255,255,255,0.04);
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: #CBD5E1;
+    margin-bottom: 8px;
+  }
+  .tier-metric strong { color: #FFFFFF; }
+  .tier-sql {
+    font-family: "Courier New", monospace;
+    font-size: 10px;
+    color: #A5B4FC;
+    background: #020617;
+    padding: 6px 8px;
+    border-radius: 4px;
+    border: 1px solid #1E293B;
+  }
+  .flow-banner {
+    background: linear-gradient(90deg, rgba(16,185,129,0.15) 0%, rgba(56,189,248,0.15) 50%, rgba(245,158,11,0.15) 100%);
+    border: 1px dashed #475569;
+    border-radius: 8px;
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    font-size: 11.5px;
+    color: #E2E8F0;
+  }
+  .flow-step { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .flow-arrow { color: #94A3B8; font-size: 16px; font-weight: bold; }
+  .db-badge {
+    background: #334155;
+    padding: 3px 8px;
+    border-radius: 4px;
+    color: #38BDF8;
+    font-family: monospace;
+    font-size: 10.5px;
+  }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <div class="dots">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+    </div>
+    <div class="window-title">Arquitectura de Cadena de Suministro y Aislamiento en PostgreSQL — LocalMarket PWA</div>
+  </div>
+  <div class="content">
+    <div class="header-desc">
+      <h2>Flujo Relacional y Segmentación de Datos por Nivel Operativo</h2>
+      <span class="badge">PostgreSQL 15+ &bull; RBAC Estricto</span>
+    </div>
+    <div class="tiers-grid">
+      <div class="tier-card admin">
+        <div class="tier-title"><span>Nivel 1: Administrador</span> <span>id_rol = 1</span></div>
+        <div class="tier-role">Central de Abasto &bull; Surtidor Mayorista</div>
+        <div class="tier-metric">
+          &bull; <strong>Ingresos:</strong> $1,000.00 MXN (Ventas a Socios)<br/>
+          &bull; <strong>Pedidos:</strong> 1 orden de surtido (#8 Gisela)<br/>
+          &bull; <strong>Menú Compra:</strong> Oculto (Solo suministra)
+        </div>
+        <div class="tier-sql">WHERE pv.estado != 'Cancelado'<br/>&nbsp;&nbsp;AND u.id_rol = 2</div>
+      </div>
+      <div class="tier-card socio">
+        <div class="tier-title"><span>Nivel 2: Socios</span> <span>id_rol = 2</span></div>
+        <div class="tier-role">Distribuidor Retailer &bull; Venta Minorista</div>
+        <div class="tier-metric">
+          &bull; <strong>Gisela (#1):</strong> $150.00 MXN a Diana Laura<br/>
+          &bull; <strong>Ximena (#2):</strong> $0.00 MXN (En registro)<br/>
+          &bull; <strong>Compras propias:</strong> Surtido al Admin (#8)
+        </div>
+        <div class="tier-sql">WHERE pv.numero_socio_atencion = $1<br/>&nbsp;&nbsp;AND u.id_rol = 3</div>
+      </div>
+      <div class="tier-card cliente">
+        <div class="tier-title"><span>Nivel 3: Clientes</span> <span>id_rol = 3</span></div>
+        <div class="tier-role">Consumidor Final &bull; Comprador Directo</div>
+        <div class="tier-metric">
+          &bull; <strong>Diana Laura (#9):</strong> Pedido #10 ($150.00)<br/>
+          &bull; <strong>Reportes:</strong> Sin acceso (Bloqueo 403)<br/>
+          &bull; <strong>Historial:</strong> Solo compras propias
+        </div>
+        <div class="tier-sql">WHERE pv.id_comprador = $1<br/>&nbsp;&nbsp;AND u.id_rol = 3</div>
+      </div>
+    </div>
+    <div class="flow-banner">
+      <div class="flow-step"><span class="db-badge">POSTGRESQL</span> PEDIDOS_VENTAS + USUARIOS</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step"><span class="db-badge">EXPRESS API</span> /api/reportes?rol=&usuario_id=</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step"><span class="db-badge">CHART.JS</span> 4 Gráficas + 4 Tarjetas KPI</div>
+      <div class="flow-arrow">&rarr;</div>
+      <div class="flow-step"><span class="db-badge">SERVICE WORKER</span> localmarket-v30</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

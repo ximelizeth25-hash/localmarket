@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #020617;
+    font-family: "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+    padding: 20px;
+    color: #E2E8F0;
+    width: 1200px;
+    height: 600px;
+  }
+  .window {
+    background: #0B1120;
+    border-radius: 12px;
+    border: 1px solid #1E293B;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .titlebar {
+    background: #020617;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #1E293B;
+  }
+  .dots { display: flex; gap: 8px; margin-right: 14px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot-red { background: #EF4444; }
+  .dot-yellow { background: #F59E0B; }
+  .dot-green { background: #10B981; }
+  .window-title {
+    font-size: 12px;
+    color: #94A3B8;
+    font-family: sans-serif;
+  }
+  .code-area {
+    padding: 16px 20px;
+    flex: 1;
+    overflow: hidden;
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  .keyword { color: #C084FC; font-weight: bold; }
+  .func { color: #60A5FA; }
+  .variable { color: #F1F5F9; }
+  .string { color: #34D399; }
+  .comment { color: #64748B; font-style: italic; }
+  .sql-kw { color: #F472B6; font-weight: bold; }
+  .num { color: #F59E0B; }
+  .line-num { color: #475569; display: inline-block; width: 32px; user-select: none; }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <div class="dots">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+    </div>
+    <div class="window-title">controllers/admin.controller.js — getMetricas(req, res, next) &bull; PostgreSQL Data Provider</div>
+  </div>
+  <div class="code-area">
+<div><span class="line-num"> 9</span><span class="keyword">async function</span> <span class="func">getMetricas</span>(req, res, next) {</div>
+<div><span class="line-num">10</span>  <span class="keyword">try</span> {</div>
+<div><span class="line-num">11</span>    <span class="keyword">const</span> rolParam = (req.query.rol || req.headers[<span class="string">'x-user-role'</span>] || <span class="string">''</span>).toLowerCase();</div>
+<div><span class="line-num">12</span>    <span class="keyword">const</span> userId = parseInt(req.query.usuario_id || req.headers[<span class="string">'x-user-id'</span>]);</div>
+<div><span class="line-num">13</span>    <span class="keyword">const</span> isAdmin = rolParam.includes(<span class="string">'admin'</span>) || (!rolParam && !userId);</div>
+<div><span class="line-num">14</span>    <span class="keyword">const</span> isSocio = !isAdmin && (rolParam.includes(<span class="string">'socio'</span>) || rolParam === <span class="string">'2'</span>);</div>
+<div><span class="line-num">15</span></div>
+<div><span class="line-num">16</span>    <span class="comment">// 🔒 SEGMENTACIÓN ESTRICTA: SI ES SOCIO, COMPUTA ÚNICAMENTE SUS CLIENTES Y VENTAS PROPIAS</span></div>
+<div><span class="line-num">17</span>    <span class="keyword">if</span> (isSocio) {</div>
+<div><span class="line-num">18</span>      <span class="keyword">const</span> pedRes = <span class="keyword">await</span> db.query(`</div>
+<div><span class="line-num">19</span>        <span class="sql-kw">SELECT</span> <span class="func">COUNT</span>(*) <span class="sql-kw">as</span> count, <span class="func">COALESCE</span>(<span class="func">SUM</span>(pv.total), <span class="num">0</span>) <span class="sql-kw">as</span> total_sum</div>
+<div><span class="line-num">20</span>        <span class="sql-kw">FROM</span> PEDIDOS_VENTAS pv <span class="sql-kw">JOIN</span> USUARIOS u <span class="sql-kw">ON</span> pv.id_comprador = u.id_usuario</div>
+<div><span class="line-num">21</span>        <span class="sql-kw">WHERE</span> pv.estado != <span class="string">'Cancelado'</span> <span class="sql-kw">AND</span> pv.numero_socio_atencion = $1 <span class="sql-kw">AND</span> u.id_rol = <span class="num">3</span>`, [numSocio]);</div>
+<div><span class="line-num">22</span>      totalPedidos = <span class="func">parseInt</span>(pedRes.rows[<span class="num">0</span>].count) || <span class="num">0</span>;</div>
+<div><span class="line-num">23</span>      ingresosTotales = <span class="func">parseFloat</span>(pedRes.rows[<span class="num">0</span>].total_sum) || <span class="num">0</span>;</div>
+<div><span class="line-num">24</span>    } <span class="keyword">else</span> {</div>
+<div><span class="line-num">25</span>      <span class="comment">// 👑 MODO ADMINISTRADOR: CALCULA VENTAS MAYORISTAS DE SURTIDO A SOCIOS (u.id_rol = 2)</span></div>
+<div><span class="line-num">26</span>      <span class="keyword">const</span> pedAdminRes = <span class="keyword">await</span> db.query(`</div>
+<div><span class="line-num">27</span>        <span class="sql-kw">SELECT</span> <span class="func">COUNT</span>(*) <span class="sql-kw">as</span> count, <span class="func">COALESCE</span>(<span class="func">SUM</span>(pv.total), <span class="num">0</span>) <span class="sql-kw">as</span> total_sum</div>
+<div><span class="line-num">28</span>        <span class="sql-kw">FROM</span> PEDIDOS_VENTAS pv <span class="sql-kw">JOIN</span> USUARIOS u <span class="sql-kw">ON</span> pv.id_comprador = u.id_usuario</div>
+<div><span class="line-num">29</span>        <span class="sql-kw">WHERE</span> pv.estado != <span class="string">'Cancelado'</span> <span class="sql-kw">AND</span> u.id_rol = <span class="num">2</span>`);</div>
+<div><span class="line-num">30</span>      totalPedidos = <span class="func">parseInt</span>(pedAdminRes.rows[<span class="num">0</span>].count) || <span class="num">0</span>;</div>
+<div><span class="line-num">31</span>      ingresosTotales = <span class="func">parseFloat</span>(pedAdminRes.rows[<span class="num">0</span>].total_sum) || <span class="num">0</span>;</div>
+<div><span class="line-num">32</span>    }</div>
+  </div>
+</div>
+</body>
+</html>

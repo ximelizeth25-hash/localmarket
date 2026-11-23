@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #020617;
+    font-family: "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+    padding: 20px;
+    color: #E2E8F0;
+    width: 1200px;
+    height: 600px;
+  }
+  .window {
+    background: #0B1120;
+    border-radius: 12px;
+    border: 1px solid #1E293B;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+    overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .titlebar {
+    background: #020617;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #1E293B;
+  }
+  .dots { display: flex; gap: 8px; margin-right: 14px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot-red { background: #EF4444; }
+  .dot-yellow { background: #F59E0B; }
+  .dot-green { background: #10B981; }
+  .window-title {
+    font-size: 12px;
+    color: #94A3B8;
+    font-family: sans-serif;
+  }
+  .code-area {
+    padding: 16px 20px;
+    flex: 1;
+    overflow: hidden;
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  .keyword { color: #C084FC; font-weight: bold; }
+  .func { color: #60A5FA; }
+  .variable { color: #F1F5F9; }
+  .string { color: #34D399; }
+  .comment { color: #64748B; font-style: italic; }
+  .num { color: #F59E0B; }
+  .line-num { color: #475569; display: inline-block; width: 32px; user-select: none; }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <div class="dots">
+      <div class="dot dot-red"></div>
+      <div class="dot dot-yellow"></div>
+      <div class="dot dot-green"></div>
+    </div>
+    <div class="window-title">public/js/dashboard.js — fetchAdminMetrics() &bull; Integración Reactiva Chart.js</div>
+  </div>
+  <div class="code-area">
+<div><span class="line-num"> 1</span><span class="keyword">async function</span> <span class="func">fetchAdminMetrics</span>() {</div>
+<div><span class="line-num"> 2</span>  <span class="keyword">try</span> {</div>
+<div><span class="line-num"> 3</span>    <span class="comment">// 🚀 1. Parámetros de sesión del usuario logueado</span></div>
+<div><span class="line-num"> 4</span>    <span class="keyword">const</span> rol = encodeURIComponent(currentUser.nombre_rol || currentUser.rol || <span class="string">'Administrador'</span>);</div>
+<div><span class="line-num"> 5</span>    <span class="keyword">const</span> userId = currentUser.id_usuario || <span class="num">1</span>;</div>
+<div><span class="line-num"> 6</span>    <span class="keyword">const</span> url = <span class="string">`/api/reportes?rol=${rol}&usuario_id=${userId}`</span>;</div>
+<div><span class="line-num"> 7</span></div>
+<div><span class="line-num"> 8</span>    <span class="keyword">const</span> res = <span class="keyword">await</span> <span class="func">fetch</span>(url, { headers: { <span class="string">'x-user-role'</span>: rol, <span class="string">'x-user-id'</span>: userId } });</div>
+<div><span class="line-num"> 9</span>    <span class="keyword">const</span> json = <span class="keyword">await</span> res.<span class="func">json</span>();</div>
+<div><span class="line-num">10</span>    <span class="keyword">const</span> data = json.data;</div>
+<div><span class="line-num">11</span></div>
+<div><span class="line-num">12</span>    <span class="comment">// 📊 2. Inyección de valores en Tarjetas KPI</span></div>
+<div><span class="line-num">13</span>    document.<span class="func">getElementById</span>(<span class="string">'kpiUsuarios'</span>).textContent = data.totalUsuarios;</div>
+<div><span class="line-num">14</span>    document.<span class="func">getElementById</span>(<span class="string">'kpiProductos'</span>).textContent = data.totalProductos;</div>
+<div><span class="line-num">15</span>    document.<span class="func">getElementById</span>(<span class="string">'kpiPedidos'</span>).textContent = data.totalPedidos;</div>
+<div><span class="line-num">16</span>    document.<span class="func">getElementById</span>(<span class="string">'kpiIngresos'</span>).textContent = <span class="string">`$${parseFloat(data.ingresosTotales).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN`</span>;</div>
+<div><span class="line-num">17</span></div>
+<div><span class="line-num">18</span>    <span class="comment">// 📈 3. Destrucción de instancias previas e inicialización de 4 Gráficas Chart.js</span></div>
+<div><span class="line-num">19</span>    <span class="func">destroyExecutiveCharts</span>();</div>
+<div><span class="line-num">20</span>    <span class="func">initExecutiveCharts</span>(data);</div>
+<div><span class="line-num">21</span>  } <span class="keyword">catch</span> (err) { console.error(<span class="string">'Error cargando métricas:'</span>, err); }</div>
+<div><span class="line-num">22</span>}</div>
+  </div>
+</div>
+</body>
+</html>
