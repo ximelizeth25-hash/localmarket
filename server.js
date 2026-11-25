@@ -8,8 +8,21 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-// Inicializar conexión a base de datos
-require('./config/db');
+// Inicializar conexión a base de datos y esquema de cortes mensuales
+const db = require('./config/db');
+db.query(`
+    CREATE TABLE IF NOT EXISTS cortes_mensuales (
+        id SERIAL PRIMARY KEY,
+        usuario_id INT NOT NULL,
+        rol VARCHAR(50) NOT NULL,
+        mes_anio VARCHAR(10) NOT NULL,
+        total_pedidos INT DEFAULT 0,
+        total_ventas NUMERIC(12,2) DEFAULT 0.00,
+        ganancia_neta NUMERIC(12,2) DEFAULT 0.00,
+        observaciones TEXT,
+        fecha_corte TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+`).catch(err => console.error('Error al inicializar cortes_mensuales en PostgreSQL:', err.message));
 
 // Importar rutas modulares y middlewares
 const apiRoutes = require('./routes');

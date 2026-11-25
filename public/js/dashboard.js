@@ -158,6 +158,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 topBtnStockBajo.style.display = 'none';
             }
         }
+
+        // Control de visibilidad del Corte Mensual: visible ÚNICAMENTE para Administrador y Socio (oculto para Cliente)
+        const seccionCorteMensual = document.getElementById('seccionCorteMensual');
+        if (seccionCorteMensual) {
+            if (isAdmin || isSocio) {
+                seccionCorteMensual.classList.remove('hidden');
+                seccionCorteMensual.style.display = 'block';
+            } else {
+                seccionCorteMensual.classList.add('hidden');
+                seccionCorteMensual.style.display = 'none';
+            }
+        }
     }
 
     applyRoleRestrictions();
@@ -366,7 +378,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof updateCompraTotal === 'function') updateCompraTotal();
         }
         if (moduleId === 'mod_pedidos') cargarPedidos();
-        if (moduleId === 'mod_admin' && (isAdmin || isSocio)) fetchAdminMetrics();
+        if (moduleId === 'mod_admin' && (isAdmin || isSocio)) {
+            fetchAdminMetrics();
+            if (typeof cargarDatosCorte === 'function') cargarDatosCorte();
+        }
         if (moduleId === 'mod_moderacion' && isAdmin) fetchModerationData();
         if (moduleId === 'mod_seguridad' && isAdmin) checkSecurityStatus();
     }
@@ -3205,9 +3220,191 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await res.json();
             if (!result.success || !result.data) return;
             renderExecutiveReports(result.data);
+            if (typeof cargarDatosCorte === 'function') cargarDatosCorte();
         } catch (e) {
             console.error('Error al cargar métricas ejecutivas:', e);
         }
+    }
+
+    // ==========================================
+    // APARTADO: CORTE MENSUAL DE VENTAS Y GANANCIAS (ADMIN Y SOCIO)
+    // ==========================================
+    let ultimosDatosCorte = null;
+
+    function formatearNombreMesCorte(mesAnio) {
+        if (!mesAnio) return '';
+        const partes = mesAnio.split('-');
+        if (partes.length < 2) return mesAnio;
+        const anio = partes[0];
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        const mIdx = parseInt(partes[1], 10) - 1;
+        return (mIdx >= 0 && mIdx < 12) ? `${meses[mIdx]} ${anio}` : mesAnio;
+    }
+
+    function initSelectorMesesCorte() {
+        const select = document.getElementById('selectMesCorte');
+        if (!select) return;
+        if (select.children.length > 0) return;
+
+        const hoy = new Date();
+        const opciones = [];
+        for (let i = 0; i < 6; i++) {
+            const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+            const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const label = formatearNombreMesCorte(val);
+            opciones.push({ val, label });
+        }
+
+        select.innerHTML = opciones.map((op, idx) => 
+            `<option value="${op.val}" ${idx === 0 ? 'selected' : ''}>${op.label}</option>`
+        ).join('');
+
+        select.addEventListener('change', () => {
+            cargarDatosCorte(select.value);
+        });
+    }
+
+    async function cargarDatosCorte(mesParam) {
+        if (!isAdmin && !isSocio) return;
+        const seccion = document.getElementById('seccionCorteMensual');
+        if (seccion) {
+            seccion.classList.remove('hidden');
+            seccion.style.display = 'block';
+        }
+
+        initSelectorMesesCorte();
+        const select = document.getElementById('selectMesCorte');
+        const mesAnio = mesParam || (select ? select.value : new Date().toISOString().slice(0, 7));
+
+        try {
+            const rol = currentUser?.nombre_rol || currentUser?.rol || (isAdmin ? 'Administrador' : (isSocio ? 'Socio' : 'Cliente'));
+            const userId = currentUser?.id_usuario || currentUser?.id || (isAdmin ? 1 : 2);
+            const numSocio = currentUser?.numero_socio || '';
+
+            const params = new URLSearchParams({
+                rol: rol,
+                usuario_id: userId,
+                numero_socio: numSocio,
+                mes_anio: mesAnio
+            });
+
+            const res = await fetch(`/api/cortes?${params.toString()}`, {
+                headers: {
+                    'x-user-role': rol,
+                    'x-user-id': String(userId),
+                    'x-numero-socio': String(numSocio)
+                }
+            });
+
+            const json = await res.json();
+            if (!json.success || !json.data) return;
+
+            ultimosDatosCorte = json.data;
+            const r = json.data.resumen || {};
+            const h = json.data.historial || [];
+
+            // Actualizar tarjetas del corte
+            const elEntregados = document.getElementById('cortePedidosEntregados');
+            const elSubtext = document.getElementById('cortePedidosSubtext');
+            const elVendido = document.getElementById('corteTotalVendido');
+            const elGanancia = document.getElementById('corteGananciaTotal');
+
+            if (elEntregados) elEntregados.textContent = r.pedidos_entregados || 0;
+            if (elSubtext) elSubtext.textContent = `${r.pedidos_pendientes || 0} pendientes en el mes (${r.total_pedidos || 0} total)`;
+            if (elVendido) elVendido.textContent = `$${parseFloat(r.total_ventas || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+            if (elGanancia) elGanancia.textContent = `$${parseFloat(r.ganancia_neta || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+
+            // Actualizar tabla de historial
+            const tbody = document.getElementById('tbodyHistorialCortes');
+            const badge = document.getElementById('badgeTotalCortes');
+            if (badge) badge.textContent = `${h.length} corte${h.length === 1 ? '' : 's'} guardado${h.length === 1 ? '' : 's'}`;
+
+            if (tbody) {
+                if (h.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400 italic">No se han registrado cortes mensuales aún.</td></tr>`;
+                } else {
+                    tbody.innerHTML = h.map(item => {
+                        const fechaStr = item.fecha_corte ? new Date(item.fecha_corte).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+                        const obs = item.observaciones ? `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[11px] border border-slate-200">${item.observaciones.replace(/</g, '&lt;')}</span>` : '<span class="text-slate-300 italic">Sin notas</span>';
+                        return `
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="py-2.5 px-3.5 font-bold text-slate-700">${formatearNombreMesCorte(item.mes_anio)}</td>
+                                <td class="py-2.5 px-3.5 text-center font-bold text-[#195618]">${item.total_pedidos || 0}</td>
+                                <td class="py-2.5 px-3.5 text-right font-black text-slate-800">$${parseFloat(item.total_ventas || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                                <td class="py-2.5 px-3.5 text-right font-black text-[#1B4332]">$${parseFloat(item.ganancia_neta || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                                <td class="py-2.5 px-3.5 text-center text-[11px] text-slate-500">${fechaStr}</td>
+                                <td class="py-2.5 px-3.5 text-xs text-slate-600">${obs}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            }
+        } catch (err) {
+            console.error('Error al cargar datos del corte mensual:', err);
+        }
+    }
+
+    const btnRealizarCorte = document.getElementById('btnRealizarCorte');
+    if (btnRealizarCorte) {
+        btnRealizarCorte.addEventListener('click', async () => {
+            if (!isAdmin && !isSocio) return;
+            const select = document.getElementById('selectMesCorte');
+            const mesAnio = select ? select.value : new Date().toISOString().slice(0, 7);
+            const nombreMes = formatearNombreMesCorte(mesAnio);
+            const obsInput = document.getElementById('corteObservaciones');
+            const observaciones = obsInput ? obsInput.value.trim() : '';
+
+            const resumen = ultimosDatosCorte?.resumen || {};
+            const totalVendido = parseFloat(resumen.total_ventas || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 });
+            const ganancia = parseFloat(resumen.ganancia_neta || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 });
+
+            const confirma = confirm(`¿Confirmas realizar y registrar el corte mensual de ${nombreMes}?\n\n• Pedidos: ${resumen.total_pedidos || 0}\n• Total Vendido: $${totalVendido} MXN\n• Ganancia Total: $${ganancia} MXN\n\nEste corte se guardará en PostgreSQL.`);
+            if (!confirma) return;
+
+            btnRealizarCorte.disabled = true;
+            btnRealizarCorte.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Registrando...</span>';
+
+            try {
+                const rol = currentUser?.nombre_rol || currentUser?.rol || (isAdmin ? 'Administrador' : (isSocio ? 'Socio' : 'Cliente'));
+                const userId = currentUser?.id_usuario || currentUser?.id || (isAdmin ? 1 : 2);
+                const numSocio = currentUser?.numero_socio || '';
+
+                const res = await fetch('/api/cortes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-user-role': rol,
+                        'x-user-id': String(userId),
+                        'x-numero-socio': String(numSocio)
+                    },
+                    body: JSON.stringify({
+                        usuario_id: userId,
+                        rol: rol,
+                        numero_socio: numSocio,
+                        mes_anio: mesAnio,
+                        total_pedidos: resumen.total_pedidos || 0,
+                        total_ventas: resumen.total_ventas || 0,
+                        ganancia_neta: resumen.ganancia_neta || 0,
+                        observaciones: observaciones
+                    })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    alert(`✅ ${data.message || 'Corte mensual registrado exitosamente en la base de datos.'}`);
+                    if (obsInput) obsInput.value = '';
+                    await cargarDatosCorte(mesAnio);
+                } else {
+                    alert(`Error al guardar corte: ${data.message || 'Intente nuevamente'}`);
+                }
+            } catch (err) {
+                console.error('Error al realizar corte mensual:', err);
+                alert('Error de conexión al guardar el corte mensual.');
+            } finally {
+                btnRealizarCorte.disabled = false;
+                btnRealizarCorte.innerHTML = '<i class="fa-solid fa-stamp"></i><span>Realizar Corte del Mes</span>';
+            }
+        });
     }
 
     // Exportación Global y Filtro de Periodo

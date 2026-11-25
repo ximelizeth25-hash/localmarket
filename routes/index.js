@@ -13,6 +13,7 @@ const productosRoutes = require('./productos.routes');
 const pedidosRoutes = require('./pedidos.routes');
 const otpRoutes = require('./otp.routes');
 const adminRoutes = require('./admin.routes');
+const cortesRoutes = require('./cortes.routes');
 const categoriasRoutes = require('./categorias.routes');
 
 // Rutas complementarias del sistema
@@ -34,6 +35,7 @@ router.use('/pedidos', pedidosRoutes);
 router.use('/otp', otpRoutes);
 router.use('/admin', adminRoutes);
 router.use('/reportes', adminRoutes);
+router.use('/cortes', cortesRoutes);
 router.use('/categorias', categoriasRoutes);
 router.use('/direcciones', direccionesRoutes);
 router.use('/roles', rolesRoutes);

@@ -209,9 +209,9 @@
         function actualizarCamposPorRol() {
             const rol = rolLogin.value;
             alertBox.classList.add('hidden');
-            identificadorLabel.textContent = 'Correo o Usuario';
 
             if (rol === 'Administrador') {
+                identificadorLabel.textContent = 'Correo o Usuario';
                 if (rolIcon) rolIcon.innerHTML = '<i class="fa-solid fa-crown"></i>';
                 identificadorInput.type = 'text';
                 identificadorInput.placeholder = 'admin@localmarket.com o admin';
@@ -224,10 +224,11 @@
 
                 btnText.textContent = 'Iniciar Sesión como Administrador';
             } else if (rol === 'Socio') {
+                identificadorLabel.textContent = 'NÚM. DE SOCIO';
                 if (rolIcon) rolIcon.innerHTML = '<i class="fa-solid fa-store"></i>';
                 identificadorInput.type = 'number';
                 identificadorInput.min = '1';
-                identificadorInput.placeholder = 'Ej: 1, 2, 3...';
+                identificadorInput.placeholder = '';
                 identificadorInput.value = '';
                 identificadorIcon.innerHTML = '<i class="fa-solid fa-id-badge"></i>';
 
@@ -237,10 +238,11 @@
 
                 btnText.textContent = 'Iniciar Sesión como Socio';
             } else if (rol === 'Cliente') {
+                identificadorLabel.textContent = 'NÚM. DE SOCIO';
                 if (rolIcon) rolIcon.innerHTML = '<i class="fa-solid fa-user"></i>';
                 identificadorInput.type = 'number';
                 identificadorInput.min = '1';
-                identificadorInput.placeholder = 'Ingresa el N° de Socio (Ej: 1)';
+                identificadorInput.placeholder = '';
                 identificadorInput.value = '';
                 identificadorIcon.innerHTML = '<i class="fa-solid fa-handshake"></i>';
 
